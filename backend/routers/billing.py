@@ -50,6 +50,13 @@ def update_room(room_id: int, room_update: schemas.RoomUpdate, db: Session = Dep
     db_room = db.query(models.Room).filter(models.Room.room_id == room_id).first()
     if not db_room:
         raise HTTPException(status_code=404, detail="Room not found")
+    
+    if room_update.current_occupancy is not None:
+        if room_update.current_occupancy > db_room.capacity:
+            raise HTTPException(
+                status_code=400,
+                detail=f"Occupancy cannot exceed capacity ({db_room.capacity})"
+            )
 
     update_data = room_update.dict(exclude_unset=True)
     for key, value in update_data.items():

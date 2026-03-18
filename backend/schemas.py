@@ -169,6 +169,7 @@ class RoomCreate(RoomBase):
 class RoomUpdate(BaseModel):
     charge_per_day: Optional[Decimal] = Field(None, gt=0)
     is_available: Optional[bool] = None
+    current_occupancy: Optional[int] = Field(None, ge=0)
 
 class Room(RoomBase):
     room_id: int
