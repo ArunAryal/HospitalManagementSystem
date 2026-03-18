@@ -116,9 +116,7 @@ def create_prescription(prescription: schemas.PrescriptionCreate, db: Session = 
     db_prescription = models.Prescription(**prescription.dict())
     db.add(db_prescription)
 
-    # Deduct stock (the SQL trigger handles this in the DB, but we also
-    # update the ORM object so the response reflects the new stock level)
-    medicine.stock_quantity -= prescription.quantity
+
 
     db.commit()
     db.refresh(db_prescription)
