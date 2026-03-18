@@ -34,6 +34,13 @@ def get_doctors(skip: int = 0, limit: int = 100, specialization: str = None, db:
     doctors = query.offset(skip).limit(limit).all()
     return doctors
 
+@router.get("/specializations/list")
+def get_specializations(db: Session = Depends(get_db)):
+    """Get list of all unique specializations"""
+    specializations = db.query(models.Doctor.specialization).distinct().all()
+    return [spec[0] for spec in specializations]
+
+
 @router.get("/{doctor_id}", response_model=schemas.Doctor)
 def get_doctor(doctor_id: int, db: Session = Depends(get_db)):
     """Get a specific doctor by ID"""
@@ -76,9 +83,3 @@ def get_doctor_appointments(doctor_id: int, db: Session = Depends(get_db)):
         raise HTTPException(status_code=404, detail="Doctor not found")
     
     return doctor.appointments
-
-@router.get("/specializations/list")
-def get_specializations(db: Session = Depends(get_db)):
-    """Get list of all unique specializations"""
-    specializations = db.query(models.Doctor.specialization).distinct().all()
-    return [spec[0] for spec in specializations]

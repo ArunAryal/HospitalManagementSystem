@@ -53,7 +53,7 @@ def get_medical_record(record_id: int, db: Session = Depends(get_db)):
     return record
 
 @router.put("/{record_id}", response_model=schemas.MedicalRecord)
-def update_medical_record(record_id: int, record_update: schemas.MedicalRecordCreate, db: Session = Depends(get_db)):
+def update_medical_record(record_id: int, record_update: schemas.MedicalRecordUpdate, db: Session = Depends(get_db)):
     """Update a medical record"""
     db_record = db.query(models.MedicalRecord).filter(
         models.MedicalRecord.record_id == record_id

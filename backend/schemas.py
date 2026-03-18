@@ -97,6 +97,12 @@ class MedicalRecordBase(BaseModel):
     treatment: Optional[str] = None
     notes: Optional[str] = None
 
+class MedicalRecordUpdate(BaseModel):
+    diagnosis: Optional[str] = None
+    symptoms: Optional[str] = None
+    treatment: Optional[str] = None
+    notes: Optional[str] = None
+
 class MedicalRecordCreate(MedicalRecordBase):
     pass
 

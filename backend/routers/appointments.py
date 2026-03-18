@@ -97,7 +97,7 @@ def update_appointment(
             models.Appointment.appointment_date == new_date,
             models.Appointment.appointment_time == new_time,
             models.Appointment.appointment_id != appointment_id,
-            models.Appointment.status != "Cancelled"
+            models.Appointment.status != models.AppointmentStatus.Cancelled
         ).first()
         
         if conflict:
@@ -131,6 +131,6 @@ def get_today_appointments(db: Session = Depends(get_db)):
     today = date.today()
     appointments = db.query(models.Appointment).filter(
         models.Appointment.appointment_date == today,
-        models.Appointment.status != "Cancelled"
+        models.Appointment.status != models.AppointmentStatus.Cancelled
     ).all()
     return appointments
