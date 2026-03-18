@@ -35,7 +35,7 @@ A REST API backend for managing hospital operations built with FastAPI and MySQL
 ### Installation
 
 ```bash
-git clone <repo-url>
+git clone https://github.com/ArunAryal/HospitalManagementSystem.git
 cd hospital-management-system
 uv sync
 ```
