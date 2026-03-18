@@ -95,11 +95,6 @@ def create_admission(admission: schemas.AdmissionCreate, db: Session = Depends(g
     db_admission = models.Admission(**admission.dict())
     db.add(db_admission)
 
-    # Update room occupancy (the SQL trigger handles this in the DB,
-    # but we also update the ORM object so the response is correct)
-    room.current_occupancy += 1
-    if room.current_occupancy >= room.capacity:
-        room.is_available = False
 
     db.commit()
     db.refresh(db_admission)
@@ -144,12 +139,6 @@ def update_admission(
     if not db_admission:
         raise HTTPException(status_code=404, detail="Admission not found")
 
-    # Handle discharge — update room occupancy
-    if admission_update.status == "Discharged" and db_admission.status == "Active":
-        room = db.query(models.Room).filter(models.Room.room_id == db_admission.room_id).first()
-        if room:
-            room.current_occupancy = max(0, room.current_occupancy - 1)
-            room.is_available = True
 
     update_data = admission_update.dict(exclude_unset=True)
     for key, value in update_data.items():
