@@ -7,6 +7,7 @@ import { MedicalRecord } from '@/types';
 import { formatDate } from '@/lib/utils';
 import { PageLoader, EmptyState, ErrorBanner, SearchInput, ConfirmDialog } from '@/components/ui';
 import MedicalRecordModal from '@/components/medical-records/MedicalRecordModal';
+import PrescriptionPanel from '@/components/medical-records/PrescriptionPanel';
 
 export default function MedicalRecordsPage() {
   const [records, setRecords] = useState<MedicalRecord[]>([]);
@@ -94,12 +95,10 @@ export default function MedicalRecordsPage() {
                           </p>
                         </div>
                         <div className="flex items-center gap-1 flex-shrink-0">
-                          {r.treatment && (
-                            <button onClick={() => setExpanded(isOpen ? null : r.record_id)}
-                              className="flex items-center gap-1 px-2 py-1 text-xs text-brand-600 hover:bg-brand-50 rounded-lg transition-colors">
-                              Treatment Plan {isOpen ? <ChevronUp className="w-3 h-3" /> : <ChevronDown className="w-3 h-3" />}
-                            </button>
-                          )}
+                          <button onClick={() => setExpanded(isOpen ? null : r.record_id)}
+                            className="flex items-center gap-1 px-2 py-1 text-xs text-brand-600 hover:bg-brand-50 rounded-lg transition-colors">
+                            Details {isOpen ? <ChevronUp className="w-3 h-3" /> : <ChevronDown className="w-3 h-3" />}
+                          </button>
                           <button onClick={() => { setEditing(r); setModalOpen(true); }}
                             className="w-7 h-7 flex items-center justify-center rounded-lg text-slate-400 hover:bg-slate-100">
                             <Pencil className="w-3.5 h-3.5" />
@@ -113,10 +112,17 @@ export default function MedicalRecordsPage() {
                       {r.notes && <p className="text-xs text-slate-400 mt-1 italic">"{r.notes}"</p>}
                     </div>
                   </div>
-                  {isOpen && r.treatment && (
-                    <div className="bg-slate-50 border-t border-slate-100 px-5 py-3 ml-[52px]">
-                      <p className="text-xs font-medium text-slate-600 mb-1">Treatment Plan</p>
-                      <p className="text-sm text-slate-700">{r.treatment}</p>
+                  {isOpen && (
+                    <div className="bg-slate-50 border-t border-slate-100">
+                      {r.treatment && (
+                        <div className="px-5 py-3 ml-0 border-b border-slate-100">
+                          <p className="text-xs font-medium text-slate-600 mb-1">Treatment Plan</p>
+                          <p className="text-sm text-slate-700">{r.treatment}</p>
+                        </div>
+                      )}
+                      <div className="border-t border-slate-100">
+                        <PrescriptionPanel recordId={r.record_id} />
+                      </div>
                     </div>
                   )}
                 </div>

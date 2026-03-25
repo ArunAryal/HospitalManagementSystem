@@ -12,7 +12,7 @@ export default function PrescriptionPanel({ recordId }: { recordId: number }) {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
   const [addOpen, setAddOpen] = useState(false);
-  const [form, setForm] = useState({ medicine_id: 0, dosage: '', frequency: '', duration: '7 days', notes: '' });
+  const [form, setForm] = useState({ medicine_id: 0, dosage: '', frequency: '', duration: '7 days', notes: '', quantity: 1 });
   const [saving, setSaving] = useState(false);
 
   const load = async () => {
@@ -30,15 +30,25 @@ export default function PrescriptionPanel({ recordId }: { recordId: number }) {
   useEffect(() => { load(); }, [recordId]);
 
   const handleAdd = async () => {
-    if (!form.medicine_id || !form.dosage || !form.frequency) return;
+    if (!form.medicine_id || !form.dosage || !form.frequency || !form.quantity) {
+      setError('Please fill all required fields (Medicine, Dosage, Frequency, Quantity)');
+      return;
+    }
     setSaving(true);
+    setError('');
     try {
-      await medicinesApi.prescribe({ ...form, record_id: recordId });
+      await medicalRecordsApi.addPrescription(recordId, { 
+        ...form, 
+        medical_record_id: recordId 
+      });
       setAddOpen(false);
-      setForm({ medicine_id: 0, dosage: '', frequency: '', duration: '7 days', notes: '' });
-      load();
-    } catch (e: any) { setError(e.message); }
-    finally { setSaving(false); }
+      setForm({ medicine_id: 0, dosage: '', frequency: '', duration: '7 days', notes: '', quantity: 1 });
+      await load();
+    } catch (e: any) {
+      setError(e?.message || 'Failed to add prescription');
+    } finally {
+      setSaving(false);
+    }
   };
 
   if (loading) return <div className="flex justify-center py-4"><Spinner /></div>;
@@ -70,6 +80,7 @@ export default function PrescriptionPanel({ recordId }: { recordId: number }) {
       )}
 
       <Modal open={addOpen} onClose={() => setAddOpen(false)} title="Add Prescription" size="lg">
+        {error && <div className="mb-3"><ErrorBanner message={error} /></div>}
         <div className="space-y-3">
           <Field label="Medicine" required>
             <select className="input" value={form.medicine_id} onChange={e => setForm(f => ({ ...f, medicine_id: +e.target.value }))}>
@@ -82,6 +93,9 @@ export default function PrescriptionPanel({ recordId }: { recordId: number }) {
           </Field>
           <Field label="Frequency" required>
             <input className="input" value={form.frequency} placeholder="e.g. Twice daily" onChange={e => setForm(f => ({ ...f, frequency: e.target.value }))} />
+          </Field>
+          <Field label="Quantity" required>
+            <input type="number" min="1" className="input" value={form.quantity || ''} onChange={e => setForm(f => ({ ...f, quantity: e.target.value ? +e.target.value : 0 }))} placeholder="e.g. 1" />
           </Field>
           <Field label="Duration" required>
             <input className="input" value={form.duration} placeholder="e.g. 7 days" onChange={e => setForm(f => ({ ...f, duration: e.target.value }))} />

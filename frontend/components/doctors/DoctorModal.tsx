@@ -70,7 +70,7 @@ export default function DoctorModal({ open, onClose, doctor, onSaved }: {
           <input className="input" value={form.qualification ?? ''} onChange={e => set('qualification', e.target.value || undefined)} />
         </Field>
         <Field label="Consultation Fee ($)" required>
-          <input type="number" min="0" step="0.01" className="input" value={form.consultation_fee} onChange={e => set('consultation_fee', +e.target.value)} />
+          <input type="number" min="0" step="0.01" className="input" value={form.consultation_fee || ''} onChange={e => set('consultation_fee', e.target.value ? +e.target.value : 0)} />
         </Field>
         <Field label="Experience (Years)">
           <input type="number" min="0" className="input" value={form.experience_years ?? ''} onChange={e => set('experience_years', e.target.value ? +e.target.value : undefined)} />

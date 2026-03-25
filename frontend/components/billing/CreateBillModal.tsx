@@ -69,8 +69,8 @@ export default function CreateBillModal({ open, onClose, onSaved }: CreateBillMo
             </Field>
             
             <Field label="Total Amount ($)" required>
-              <input type="number" min="0" step="0.01" className="input" value={form.total_amount}
-                onChange={e => setForm(f => ({ ...f, total_amount: +e.target.value }))} />
+              <input type="number" min="0" step="0.01" className="input" value={form.total_amount || ''}
+                onChange={e => setForm(f => ({ ...f, total_amount: e.target.value ? +e.target.value : 0 }))} />
             </Field>
             
             <Field label="Bill Date">

@@ -158,8 +158,8 @@ export default function BillingPage() {
             </select>
           </Field>
           <Field label="Total Amount ($)" required>
-            <input type="number" min="0" step="0.01" className="input" value={billForm.total_amount}
-              onChange={e => setBillForm(f => ({ ...f, total_amount: +e.target.value }))} />
+            <input type="number" min="0" step="0.01" className="input" value={billForm.total_amount || ''}
+              onChange={e => setBillForm(f => ({ ...f, total_amount: e.target.value ? +e.target.value : 0 }))} />
           </Field>
           <Field label="Bill Date">
             <input type="date" className="input" value={billForm.bill_date ?? ''} onChange={e => setBillForm((f: any) => ({ ...f, bill_date: e.target.value || undefined }))} />
@@ -181,8 +181,8 @@ export default function BillingPage() {
             </div>
             <div className="space-y-3">
               <Field label="Amount ($)" required>
-                <input type="number" min="0" step="0.01" className="input" value={payForm.amount}
-                  onChange={e => setPayForm(f => ({ ...f, amount: +e.target.value }))} />
+                <input type="number" min="0" step="0.01" className="input" value={payForm.amount || ''}
+                  onChange={e => setPayForm(f => ({ ...f, amount: e.target.value ? +e.target.value : 0 }))} />
               </Field>
               <Field label="Payment Method">
                 <select className="input" value={payForm.payment_method} onChange={e => setPayForm(f => ({ ...f, payment_method: e.target.value as PaymentMethod }))}>

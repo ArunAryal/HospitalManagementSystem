@@ -217,10 +217,10 @@ export default function RoomsPage() {
             </select>
           </Field>
           <Field label="Capacity">
-            <input type="number" min="1" className="input" value={roomForm.capacity} onChange={e => setRoomForm((f: any) => ({ ...f, capacity: +e.target.value }))} />
+            <input type="number" min="1" className="input" value={roomForm.capacity || ''} onChange={e => setRoomForm((f: any) => ({ ...f, capacity: e.target.value ? +e.target.value : 0 }))} />
           </Field>
           <Field label="Daily Rate ($)">
-            <input type="number" min="0" step="0.01" className="input" value={roomForm.charge_per_day} onChange={e => setRoomForm((f: any) => ({ ...f, charge_per_day: +e.target.value }))} />
+            <input type="number" min="0" step="0.01" className="input" value={roomForm.charge_per_day || ''} onChange={e => setRoomForm((f: any) => ({ ...f, charge_per_day: e.target.value ? +e.target.value : 0 }))} />
           </Field>
           <Field label="Available">
             <select className="input" value={roomForm.is_available ? 'true' : 'false'} onChange={e => setRoomForm((f: any) => ({ ...f, is_available: e.target.value === 'true' }))}>

@@ -87,6 +87,8 @@ export const medicalRecordsApi = {
   delete: (id: number) =>
     request<any>(`/medical-records/${id}`, { method: 'DELETE' }),
   prescriptions: (id: number) => request<any[]>(`/medical-records/${id}/prescriptions`),
+  addPrescription: (recordId: number, data: any) =>
+    request<any>(`/medical-records/${recordId}/prescriptions/`, { method: 'POST', body: JSON.stringify(data) }),
 };
 
 // ─── Medicines ────────────────────────────────────────────────────────────────

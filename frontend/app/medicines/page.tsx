@@ -154,10 +154,10 @@ export default function MedicinesPage() {
             <input className="input" value={form.description ?? ''} onChange={e => setForm(f => ({ ...f, description: e.target.value || undefined }))} placeholder="Brief description…" />
           </Field>
           <Field label="Unit Price ($)" required>
-            <input type="number" step="0.01" min="0" className="input" value={form.unit_price} onChange={e => setForm(f => ({ ...f, unit_price: +e.target.value }))} />
+            <input type="number" step="0.01" min="0" className="input" value={form.unit_price || ''} onChange={e => setForm(f => ({ ...f, unit_price: e.target.value ? +e.target.value : 0 }))} />
           </Field>
           <Field label="Stock Quantity" required>
-            <input type="number" min="0" className="input" value={form.stock_quantity} onChange={e => setForm(f => ({ ...f, stock_quantity: +e.target.value }))} />
+            <input type="number" min="0" className="input" value={form.stock_quantity || ''} onChange={e => setForm(f => ({ ...f, stock_quantity: e.target.value ? +e.target.value : 0 }))} />
           </Field>
         </div>
         <div className="flex justify-end gap-2 mt-4">
