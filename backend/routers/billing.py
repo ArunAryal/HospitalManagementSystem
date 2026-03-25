@@ -89,3 +89,40 @@ def delete_bill(bill_id: int, db: Session = Depends(get_db)):
         raise HTTPException(status_code=404, detail="Bill not found")
     db.delete(bill)
     db.commit()
+
+
+@router.post("/admission/{admission_id}/generate", response_model=schemas.Bill, status_code=201)
+def generate_bill_for_admission(admission_id: int, db: Session = Depends(get_db)):
+    """Generate or get auto-calculated bill for an admission."""
+    # Check if admission exists
+    admission = db.query(models.Admission).filter(
+        models.Admission.admission_id == admission_id
+    ).first()
+    if not admission:
+        raise HTTPException(status_code=404, detail="Admission not found")
+    
+    # Check if bill already exists
+    existing_bill = db.query(models.Bill).filter(
+        models.Bill.admission_id == admission_id
+    ).first()
+    if existing_bill:
+        return existing_bill
+    
+    # Get room daily rate
+    room = db.query(models.Room).filter(models.Room.room_id == admission.room_id).first()
+    room_charges = room.charge_per_day if room else 0
+    
+    # Create new bill
+    db_bill = models.Bill(
+        patient_id=admission.patient_id,
+        admission_id=admission_id,
+        consultation_fee=0,
+        medicine_charges=0,
+        room_charges=room_charges,
+        other_charges=0,
+        total_amount=room_charges,
+    )
+    db.add(db_bill)
+    db.commit()
+    db.refresh(db_bill)
+    return db_bill

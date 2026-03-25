@@ -223,24 +223,184 @@ BEGIN
 END//
 
 -- Trigger to auto-update payment status based on paid amount
-CREATE TRIGGER after_bill_update
-AFTER UPDATE ON bills
+CREATE TRIGGER before_bill_update
+BEFORE UPDATE ON bills
 FOR EACH ROW
 BEGIN
     IF NEW.paid_amount IS NOT NULL THEN
         IF NEW.paid_amount >= NEW.total_amount THEN
-            UPDATE bills 
-            SET payment_status = 'Paid'
-            WHERE bill_id = NEW.bill_id;
+            SET NEW.payment_status = 'Paid';
         ELSEIF NEW.paid_amount > 0 THEN
-            UPDATE bills 
-            SET payment_status = 'Partially Paid'
-            WHERE bill_id = NEW.bill_id;
+            SET NEW.payment_status = 'Partially Paid';
         ELSEIF NEW.paid_amount = 0 THEN
-            UPDATE bills 
-            SET payment_status = 'Pending'
-            WHERE bill_id = NEW.bill_id;
+            SET NEW.payment_status = 'Pending';
         END IF;
+    END IF;
+END//
+
+-- Trigger to auto-create bill when admission is created
+CREATE TRIGGER after_admission_insert_bill
+AFTER INSERT ON admissions
+FOR EACH ROW
+BEGIN
+    DECLARE v_room_charges DECIMAL(10,2) DEFAULT 0;
+    DECLARE v_daily_rate DECIMAL(10,2) DEFAULT 0;
+    
+    -- Get room daily rate
+    SELECT charge_per_day INTO v_daily_rate
+    FROM rooms
+    WHERE room_id = NEW.room_id;
+    
+    -- Initial room charges (1 day by default)
+    SET v_room_charges = COALESCE(v_daily_rate, 0);
+    
+    -- Create bill for admission
+    INSERT INTO bills (
+        patient_id,
+        admission_id,
+        consultation_fee,
+        medicine_charges,
+        room_charges,
+        other_charges,
+        total_amount,
+        payment_status,
+        bill_date,
+        paid_amount
+    ) VALUES (
+        NEW.patient_id,
+        NEW.admission_id,
+        0,
+        0,
+        v_room_charges,
+        0,
+        v_room_charges,
+        'Pending',
+        NOW(),
+        0
+    );
+END//
+
+-- Trigger to update bill medicine charges when prescription is added
+CREATE TRIGGER after_prescription_insert_bill
+AFTER INSERT ON prescriptions
+FOR EACH ROW
+BEGIN
+    DECLARE v_patient_id INT DEFAULT 0;
+    DECLARE v_medicine_price DECIMAL(10,2) DEFAULT 0;
+    DECLARE v_prescription_cost DECIMAL(10,2) DEFAULT 0;
+    DECLARE v_existing_bill_id INT DEFAULT NULL;
+    DECLARE v_admission_id INT DEFAULT NULL;
+    
+    -- Get medicine price and subscription cost
+    SELECT unit_price INTO v_medicine_price
+    FROM medicines
+    WHERE medicine_id = NEW.medicine_id;
+    
+    SET v_prescription_cost = v_medicine_price * NEW.quantity;
+    
+    -- Get patient and admission from medical record
+    SELECT patient_id, appointment_id INTO v_patient_id, v_admission_id
+    FROM medical_records
+    WHERE record_id = NEW.medical_record_id;
+    
+    -- Find existing bill for this patient's admission
+    SELECT bill_id INTO v_existing_bill_id
+    FROM bills
+    WHERE patient_id = v_patient_id
+    AND admission_id = v_admission_id
+    LIMIT 1;
+    
+    -- Update bill if it exists
+    IF v_existing_bill_id IS NOT NULL THEN
+        UPDATE bills
+        SET medicine_charges = medicine_charges + v_prescription_cost,
+            total_amount = total_amount + v_prescription_cost
+        WHERE bill_id = v_existing_bill_id;
+    END IF;
+END//
+
+-- Trigger to update bill when admission is discharged (finalize room charges)
+CREATE TRIGGER after_admission_update_bill
+AFTER UPDATE ON admissions
+FOR EACH ROW
+BEGIN
+    DECLARE v_days INT DEFAULT 1;
+    DECLARE v_room_charge DECIMAL(10,2) DEFAULT 0;
+    DECLARE v_existing_bill_id INT DEFAULT NULL;
+    DECLARE v_old_room_charges DECIMAL(10,2) DEFAULT 0;
+    DECLARE v_new_room_charges DECIMAL(10,2) DEFAULT 0;
+    
+    -- Only update bill when discharged (status changes from Active to Discharged)
+    IF OLD.status = 'Active' AND NEW.status = 'Discharged' THEN
+        -- Calculate number of days
+        SET v_days = DATEDIFF(NEW.discharge_date, OLD.admission_date);
+        IF v_days < 1 THEN SET v_days = 1; END IF;
+        
+        -- Get room daily rate
+        SELECT charge_per_day INTO v_room_charge
+        FROM rooms
+        WHERE room_id = NEW.room_id;
+        
+        -- Calculate new room charges
+        SET v_new_room_charges = v_days * COALESCE(v_room_charge, 0);
+        
+        -- Find and update the bill
+        SELECT bill_id INTO v_existing_bill_id
+        FROM bills
+        WHERE admission_id = NEW.admission_id
+        LIMIT 1;
+        
+        IF v_existing_bill_id IS NOT NULL THEN
+            -- Get old room charges to subtract
+            SELECT room_charges INTO v_old_room_charges
+            FROM bills
+            WHERE bill_id = v_existing_bill_id;
+            
+            -- Update bill with accurate room charges
+            UPDATE bills
+            SET room_charges = v_new_room_charges,
+                total_amount = total_amount - v_old_room_charges + v_new_room_charges
+            WHERE bill_id = v_existing_bill_id;
+        END IF;
+    END IF;
+END//
+
+-- Trigger to restore medicine charges when prescription is deleted
+CREATE TRIGGER after_prescription_delete_bill
+AFTER DELETE ON prescriptions
+FOR EACH ROW
+BEGIN
+    DECLARE v_patient_id INT DEFAULT 0;
+    DECLARE v_medicine_price DECIMAL(10,2) DEFAULT 0;
+    DECLARE v_prescription_cost DECIMAL(10,2) DEFAULT 0;
+    DECLARE v_existing_bill_id INT DEFAULT NULL;
+    DECLARE v_admission_id INT DEFAULT NULL;
+    
+    -- Get medicine price and subscription cost
+    SELECT unit_price INTO v_medicine_price
+    FROM medicines
+    WHERE medicine_id = OLD.medicine_id;
+    
+    SET v_prescription_cost = v_medicine_price * OLD.quantity;
+    
+    -- Get patient and admission from medical record
+    SELECT patient_id, appointment_id INTO v_patient_id, v_admission_id
+    FROM medical_records
+    WHERE record_id = OLD.medical_record_id;
+    
+    -- Find existing bill for this patient's admission
+    SELECT bill_id INTO v_existing_bill_id
+    FROM bills
+    WHERE patient_id = v_patient_id
+    AND admission_id = v_admission_id
+    LIMIT 1;
+    
+    -- Update bill if it exists
+    IF v_existing_bill_id IS NOT NULL THEN
+        UPDATE bills
+        SET medicine_charges = medicine_charges - v_prescription_cost,
+            total_amount = total_amount - v_prescription_cost
+        WHERE bill_id = v_existing_bill_id;
     END IF;
 END//
 

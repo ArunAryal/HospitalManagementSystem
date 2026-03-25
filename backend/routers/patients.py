@@ -68,5 +68,11 @@ def delete_patient(patient_id: int, db: Session = Depends(get_db)):
     patient = db.query(models.Patient).filter(models.Patient.patient_id == patient_id).first()
     if not patient:
         raise HTTPException(status_code=404, detail="Patient not found")
-    db.delete(patient)
-    db.commit()
+    
+    try:
+        # Delete all related records (cascade handled by database)
+        db.delete(patient)
+        db.commit()
+    except Exception as e:
+        db.rollback()
+        raise HTTPException(status_code=400, detail=f"Could not delete patient: {str(e)}")

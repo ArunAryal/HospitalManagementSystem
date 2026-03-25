@@ -45,6 +45,7 @@ export default function PatientModal({ open, onClose, patient, onSaved }: {
     if (!form.first_name) errors.first_name = 'Required';
     if (!form.last_name) errors.last_name = 'Required';
     if (!form.date_of_birth) errors.date_of_birth = 'Required';
+    if (!form.phone) errors.phone = 'Required';
 
     if (Object.keys(errors).length > 0) {
       setFieldErrors(errors);
@@ -98,7 +99,7 @@ export default function PatientModal({ open, onClose, patient, onSaved }: {
             {BLOOD_TYPES.map(b => <option key={b} value={b}>{b}</option>)}
           </select>
         </Field>
-        <Field label="Phone" error={fieldErrors.phone}>
+        <Field label="Phone" required error={fieldErrors.phone}>
           <input className="input" value={form.phone ?? ''} onChange={e => set('phone', e.target.value || undefined)} placeholder="+977" />
         </Field>
         <Field label="Email" error={fieldErrors.email}>

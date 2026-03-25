@@ -47,10 +47,10 @@ class Patient(Base):
     emergency_contact = Column(String(15))
     registration_date = Column(DateTime, default=datetime.utcnow)
     
-    appointments = relationship("Appointment", back_populates="patient")
-    medical_records = relationship("MedicalRecord", back_populates="patient")
-    admissions = relationship("Admission", back_populates="patient")
-    bills = relationship("Bill", back_populates="patient")
+    appointments = relationship("Appointment", back_populates="patient", cascade="all, delete-orphan")
+    medical_records = relationship("MedicalRecord", back_populates="patient", cascade="all, delete-orphan")
+    admissions = relationship("Admission", back_populates="patient", cascade="all, delete-orphan")
+    bills = relationship("Bill", back_populates="patient", cascade="all, delete-orphan")
 
 class Doctor(Base):
     __tablename__ = "doctors"
@@ -67,9 +67,9 @@ class Doctor(Base):
     joined_date = Column(Date, nullable=False)
     is_available = Column(Boolean, default=True)
     
-    appointments = relationship("Appointment", back_populates="doctor")
-    medical_records = relationship("MedicalRecord", back_populates="doctor")
-    admissions = relationship("Admission", back_populates="doctor")
+    appointments = relationship("Appointment", back_populates="doctor", cascade="all, delete-orphan")
+    medical_records = relationship("MedicalRecord", back_populates="doctor", cascade="all, delete-orphan")
+    admissions = relationship("Admission", back_populates="doctor", cascade="all, delete-orphan")
 
 class Appointment(Base):
     __tablename__ = "appointments"
@@ -86,8 +86,8 @@ class Appointment(Base):
     
     patient = relationship("Patient", back_populates="appointments")
     doctor = relationship("Doctor", back_populates="appointments")
-    medical_records = relationship("MedicalRecord", back_populates="appointment")
-    bills = relationship("Bill", back_populates="appointment")
+    medical_records = relationship("MedicalRecord", back_populates="appointment", cascade="all, delete-orphan")
+    bills = relationship("Bill", back_populates="appointment", cascade="all, delete-orphan")
 
 class MedicalRecord(Base):
     __tablename__ = "medical_records"
@@ -105,7 +105,7 @@ class MedicalRecord(Base):
     patient = relationship("Patient", back_populates="medical_records")
     doctor = relationship("Doctor", back_populates="medical_records")
     appointment = relationship("Appointment", back_populates="medical_records")
-    prescriptions = relationship("Prescription", back_populates="medical_record")
+    prescriptions = relationship("Prescription", back_populates="medical_record", cascade="all, delete-orphan")
 
 class Medicine(Base):
     __tablename__ = "medicines"
@@ -119,7 +119,7 @@ class Medicine(Base):
     reorder_level = Column(Integer, default=10)
     expiry_date = Column(Date)
     
-    prescriptions = relationship("Prescription", back_populates="medicine")
+    prescriptions = relationship("Prescription", back_populates="medicine", cascade="all, delete-orphan")
 
 class Prescription(Base):
     __tablename__ = "prescriptions"
@@ -147,7 +147,7 @@ class Room(Base):
     charge_per_day = Column(DECIMAL(10, 2), nullable=False)
     is_available = Column(Boolean, default=True)
     
-    admissions = relationship("Admission", back_populates="room")
+    admissions = relationship("Admission", back_populates="room", cascade="all, delete-orphan")
 
 class Admission(Base):
     __tablename__ = "admissions"
@@ -164,7 +164,7 @@ class Admission(Base):
     patient = relationship("Patient", back_populates="admissions")
     room = relationship("Room", back_populates="admissions")
     doctor = relationship("Doctor", back_populates="admissions")
-    bills = relationship("Bill", back_populates="admission")
+    bills = relationship("Bill", back_populates="admission", cascade="all, delete-orphan")
 
 class Bill(Base):
     __tablename__ = "bills"

@@ -60,6 +60,21 @@ def create_appointment(appt: schemas.AppointmentCreate, db: Session = Depends(ge
     db.add(db_appt)
     db.commit()
     db.refresh(db_appt)
+    
+    # Create bill for appointment with consultation fee
+    consultation_fee = doctor.consultation_fee if doctor else 0
+    db_bill = models.Bill(
+        patient_id=appt.patient_id,
+        appointment_id=db_appt.appointment_id,
+        consultation_fee=consultation_fee,
+        medicine_charges=0,
+        room_charges=0,
+        other_charges=0,
+        total_amount=consultation_fee,
+    )
+    db.add(db_bill)
+    db.commit()
+    
     return db_appt
 
 
@@ -95,6 +110,19 @@ def update_appointment(
         setattr(appt, field, value)
     db.commit()
     db.refresh(appt)
+    
+    # Update or remove bill when appointment status changes
+    bill = db.query(models.Bill).filter(
+        models.Bill.appointment_id == appointment_id
+    ).first()
+    
+    if bill:
+        # If appointment is Cancelled or No-Show, clear the consultation fee
+        if appt.status in [models.AppointmentStatus.Cancelled, models.AppointmentStatus.NoShow]:
+            bill.consultation_fee = 0
+            bill.total_amount = bill.medicine_charges + bill.room_charges + bill.other_charges
+        db.commit()
+    
     return appt
 
 

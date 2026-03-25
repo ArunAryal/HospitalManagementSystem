@@ -130,6 +130,23 @@ def admit_patient(admission: schemas.AdmissionCreate, db: Session = Depends(get_
     db.add(db_admission)
     db.commit()
     db.refresh(db_admission)
+    
+    # Ensure bill is created for this admission
+    room = db.query(models.Room).filter(models.Room.room_id == admission.room_id).first()
+    room_charges = room.charge_per_day if room else 0
+    
+    db_bill = models.Bill(
+        patient_id=admission.patient_id,
+        admission_id=db_admission.admission_id,
+        consultation_fee=0,
+        medicine_charges=0,
+        room_charges=room_charges,
+        other_charges=0,
+        total_amount=room_charges,
+    )
+    db.add(db_bill)
+    db.commit()
+    
     return db_admission
 
 
@@ -169,4 +186,57 @@ def update_admission(
 
     db.commit()
     db.refresh(admission)
+    return admission
+
+
+@router.patch("/admissions/{admission_id}/discharge", response_model=schemas.Admission)
+def discharge_patient(
+    admission_id: int, update: schemas.AdmissionUpdate, db: Session = Depends(get_db)
+):
+    """Discharge a patient from admission."""
+    admission = (
+        db.query(models.Admission)
+        .filter(models.Admission.admission_id == admission_id)
+        .first()
+    )
+    if not admission:
+        raise HTTPException(status_code=404, detail="Admission not found")
+
+    data = update.model_dump(exclude_unset=True)
+    
+    # Set status to Discharged
+    data["status"] = "Discharged"
+    
+    # Auto-set discharge_date if not provided
+    if not data.get("discharge_date"):
+        data["discharge_date"] = datetime.utcnow()
+
+    for field, value in data.items():
+        setattr(admission, field, value)
+
+    db.commit()
+    db.refresh(admission)
+    
+    # Ensure bill exists for this admission
+    existing_bill = db.query(models.Bill).filter(
+        models.Bill.admission_id == admission_id
+    ).first()
+    
+    if not existing_bill:
+        # Create bill if it doesn't exist
+        room = db.query(models.Room).filter(models.Room.room_id == admission.room_id).first()
+        room_charges = room.charge_per_day if room else 0
+        
+        db_bill = models.Bill(
+            patient_id=admission.patient_id,
+            admission_id=admission_id,
+            consultation_fee=0,
+            medicine_charges=0,
+            room_charges=room_charges,
+            other_charges=0,
+            total_amount=room_charges,
+        )
+        db.add(db_bill)
+        db.commit()
+    
     return admission

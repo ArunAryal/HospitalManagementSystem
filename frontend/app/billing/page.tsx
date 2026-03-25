@@ -1,9 +1,9 @@
 'use client';
 
 import { useEffect, useState } from 'react';
-import { Plus, Receipt, CreditCard, ChevronDown, ChevronUp } from 'lucide-react';
+import { Receipt, CreditCard, RefreshCw } from 'lucide-react';
 import { billingApi, patientsApi } from '@/lib/api';
-import { Bill, BillCreate, BillStatus, PaymentCreate, PaymentMethod, Patient } from '@/types';
+import { Bill, BillStatus, PaymentCreate, PaymentMethod, Patient } from '@/types';
 import { formatDate, formatCurrency } from '@/lib/utils';
 import { PageLoader, ErrorBanner, StatusBadge, SearchInput, Modal, Field, Spinner, StatCard } from '@/components/ui';
 
@@ -17,12 +17,10 @@ export default function BillingPage() {
   const [error, setError] = useState('');
   const [search, setSearch] = useState('');
   const [statusFilter, setStatusFilter] = useState('');
-  const [billModal, setBillModal] = useState(false);
   const [payModal, setPayModal] = useState<Bill | null>(null);
-  const [billForm, setBillForm] = useState<BillCreate>({ patient_id: 0, total_amount: 0 });
   const [payForm, setPayForm] = useState<Omit<PaymentCreate, 'bill_id'>>({ amount: 0, payment_method: 'Cash' });
   const [saving, setSaving] = useState(false);
-  const [expanded, setExpanded] = useState<number | null>(null);
+  const [refreshing, setRefreshing] = useState(false);
 
   const load = async () => {
     try {
@@ -42,27 +40,35 @@ export default function BillingPage() {
     return matchSearch && matchStatus;
   });
 
-  const createBill = async () => {
-    if (!billForm.patient_id || !billForm.total_amount) return;
+  const addPayment = async () => {
+    if (!payModal || !payForm.amount) {
+      setError('Please enter a payment amount');
+      return;
+    }
     setSaving(true);
+    setError('');
     try {
-      await billingApi.createBill(billForm);
-      setBillModal(false);
-      setBillForm({ patient_id: 0, total_amount: 0 });
-      load();
-    } catch (e: any) { setError(e.message); }
-    finally { setSaving(false); }
+      const newPaidAmount = Number((Number(payModal.paid_amount || 0) + Number(payForm.amount || 0)).toFixed(2));
+      await billingApi.updateBill(payModal.bill_id, { 
+        paid_amount: newPaidAmount, 
+        payment_method: payForm.payment_method 
+      });
+      setPayModal(null);
+      setPayForm({ amount: 0, payment_method: 'Cash' });
+      await load();
+    } catch (e: any) { 
+      setError(e.message || 'Failed to record payment');
+    } finally { 
+      setSaving(false); 
+    }
   };
 
-  const addPayment = async () => {
-    if (!payModal || !payForm.amount) return;
-    setSaving(true);
+  const handleRefresh = async () => {
+    setRefreshing(true);
     try {
-      await billingApi.addPayment({ ...payForm, bill_id: payModal.bill_id });
-      setPayModal(null);
-      load();
+      await load();
     } catch (e: any) { setError(e.message); }
-    finally { setSaving(false); }
+    finally { setRefreshing(false); }
   };
 
   if (loading) return <PageLoader />;
@@ -78,10 +84,15 @@ export default function BillingPage() {
       <div className="flex items-center justify-between">
         <div>
           <h1 className="page-title">Billing</h1>
-          <p className="text-sm text-slate-500 mt-0.5">{bills.length} bills total</p>
+          <p className="text-sm text-slate-500 mt-0.5">{bills.length} bills total • Auto-generated from admissions and prescriptions</p>
         </div>
-        <button className="btn-primary" onClick={() => setBillModal(true)}>
-          <Plus className="w-4 h-4" /> Create Bill
+        <button 
+          onClick={handleRefresh}
+          disabled={refreshing}
+          className="flex items-center gap-2 px-3 py-2 rounded-lg bg-slate-100 hover:bg-slate-200 text-slate-600 font-medium text-sm transition-colors"
+        >
+          <RefreshCw className={`w-4 h-4 ${refreshing ? 'animate-spin' : ''}`} />
+          Refresh
         </button>
       </div>
 
@@ -149,32 +160,13 @@ export default function BillingPage() {
       </div>
 
       {/* Create Bill Modal */}
-      <Modal open={billModal} onClose={() => setBillModal(false)} title="Create Bill" size="lg">
-        <div className="grid grid-cols-3 gap-3">
-          <Field label="Patient" required>
-            <select className="input" value={billForm.patient_id} onChange={e => setBillForm(f => ({ ...f, patient_id: +e.target.value }))}>
-              <option value={0}>— Select patient —</option>
-              {patients.map(p => <option key={p.patient_id} value={p.patient_id}>{p.first_name} {p.last_name}</option>)}
-            </select>
-          </Field>
-          <Field label="Total Amount (Rs)" required>
-            <input type="number" min="0" step="0.01" className="input" value={billForm.total_amount || ''}
-              onChange={e => setBillForm(f => ({ ...f, total_amount: e.target.value ? +e.target.value : 0 }))} />
-          </Field>
-          <Field label="Bill Date">
-            <input type="date" className="input" value={billForm.bill_date ?? ''} onChange={e => setBillForm((f: any) => ({ ...f, bill_date: e.target.value || undefined }))} />
-          </Field>
-        </div>
-        <div className="flex justify-end gap-2 mt-4">
-          <button className="btn-secondary" onClick={() => setBillModal(false)}>Cancel</button>
-          <button className="btn-primary" onClick={createBill} disabled={saving}>{saving && <Spinner size="sm" />}Create Bill</button>
-        </div>
-      </Modal>
+      {/* Removed: Bills are now auto-generated when admissions are created and prescriptions are added */}
 
       {/* Payment Modal */}
       <Modal open={!!payModal} onClose={() => setPayModal(null)} title="Record Payment" size="md">
         {payModal && (
           <>
+            {error && <div className="mb-4"><ErrorBanner message={error} /></div>}
             <div className="bg-slate-50 rounded-lg p-3 mb-4 text-sm">
               <p className="text-slate-500">Outstanding balance</p>
               <p className="text-xl font-bold text-slate-900 mt-0.5">{formatCurrency(payModal.total_amount - payModal.paid_amount)}</p>
@@ -189,12 +181,9 @@ export default function BillingPage() {
                   {PAY_METHODS.map(m => <option key={m}>{m}</option>)}
                 </select>
               </Field>
-              <Field label="Notes">
-                <input className="input" value={payForm.notes ?? ''} onChange={e => setPayForm(f => ({ ...f, notes: e.target.value || undefined }))} />
-              </Field>
             </div>
             <div className="flex justify-end gap-2 mt-5">
-              <button className="btn-secondary" onClick={() => setPayModal(null)}>Cancel</button>
+              <button className="btn-secondary" onClick={() => setPayModal(null)} disabled={saving}>Cancel</button>
               <button className="btn-primary" onClick={addPayment} disabled={saving}>{saving && <Spinner size="sm" />}Record Payment</button>
             </div>
           </>

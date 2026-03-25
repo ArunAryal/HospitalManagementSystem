@@ -161,6 +161,25 @@ def add_prescription(
     db.add(db_prescription)
     db.commit()
     db.refresh(db_prescription)
+    
+    # Update bill if this medical record is linked to an appointment
+    medical_record = db.query(models.MedicalRecord).filter(
+        models.MedicalRecord.record_id == record_id
+    ).first()
+    
+    if medical_record and medical_record.appointment_id:
+        # Find bill for this appointment
+        bill = db.query(models.Bill).filter(
+            models.Bill.appointment_id == medical_record.appointment_id
+        ).first()
+        
+        if bill:
+            # Add medicine charges to bill
+            medicine_cost = medicine.unit_price * prescription.quantity
+            bill.medicine_charges = bill.medicine_charges + medicine_cost
+            bill.total_amount = bill.total_amount + medicine_cost
+            db.commit()
+    
     return db_prescription
 
 
@@ -173,6 +192,29 @@ def delete_prescription(prescription_id: int, db: Session = Depends(get_db)):
     )
     if not presc:
         raise HTTPException(status_code=404, detail="Prescription not found")
+
+    # Get medicine price for bill restoration
+    medicine = db.query(models.Medicine).filter(
+        models.Medicine.medicine_id == presc.medicine_id
+    ).first()
+    medicine_cost = (medicine.unit_price * presc.quantity) if medicine else 0
+    
+    # Get medical record to find associated appointment
+    medical_record = db.query(models.MedicalRecord).filter(
+        models.MedicalRecord.record_id == presc.medical_record_id
+    ).first()
+    
+    # Update bill if linked to appointment
+    if medical_record and medical_record.appointment_id:
+        bill = db.query(models.Bill).filter(
+            models.Bill.appointment_id == medical_record.appointment_id
+        ).first()
+        
+        if bill:
+            # Subtract medicine charges from bill
+            bill.medicine_charges = max(0, bill.medicine_charges - medicine_cost)
+            bill.total_amount = max(0, bill.total_amount - medicine_cost)
+            db.commit()
 
     # Note: Stock restoration should be handled by database trigger
     # (if a delete trigger is added to the database schema)
