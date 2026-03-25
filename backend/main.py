@@ -1,6 +1,6 @@
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
-from backend.routers import patients, doctors, appointments, medical_records, billing, medicines, rooms
+from .routers import patients, doctors, appointments, medical_records, billing, medicines, rooms
 
 app = FastAPI(
     title="Hospital Management System API",
