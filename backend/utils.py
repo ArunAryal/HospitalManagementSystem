@@ -58,9 +58,9 @@ def validate_email(email: str) -> bool:
 def validate_phone(phone: str) -> bool:
     """Validate phone number format (basic check)."""
     # Must be 10-15 digits
+    digits_only = "".join(c for c in phone if c.isdigit())
     return bool(
-        phone.replace("+", "").replace("-", "").replace(" ", "").isdigit()
-        and 10 <= len(phone) <= 15
+        10 <= len(digits_only) <= 15
     )
 
 

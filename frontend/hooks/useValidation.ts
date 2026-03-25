@@ -63,7 +63,10 @@ export const ValidationRules = {
   }),
 
   phone: (message = 'Invalid phone number'): ValidationRule => ({
-    validate: (v) => /^[0-9+\-\s()]{10,15}$/.test(v?.replace(/\s/g, '')),
+    validate: (v) => {
+      const digits = (v || '').replace(/\D/g, '');
+      return digits.length >= 10 && digits.length <= 15;
+    },
     message,
   }),
 
