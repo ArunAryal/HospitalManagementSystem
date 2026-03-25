@@ -33,7 +33,7 @@ def list_doctors(
             return service.list_available_doctors(skip=skip, limit=limit)
         return service.list_doctors(skip=skip, limit=limit)
     except APIException as e:
-        raise HTTPException(status_code=e.status_code, detail=e.detail)
+        raise HTTPException(status_code=e.status_code, detail=e.message)
 
 
 @router.post("/", response_model=schemas.Doctor, status_code=201)
@@ -45,7 +45,7 @@ def create_doctor(
     try:
         return service.create_doctor(doctor)
     except APIException as e:
-        raise HTTPException(status_code=e.status_code, detail=e.detail)
+        raise HTTPException(status_code=e.status_code, detail=e.message)
 
 
 @router.get("/{doctor_id}", response_model=schemas.Doctor)
@@ -57,7 +57,7 @@ def get_doctor(
     try:
         return service.get_doctor(doctor_id)
     except APIException as e:
-        raise HTTPException(status_code=e.status_code, detail=e.detail)
+        raise HTTPException(status_code=e.status_code, detail=e.message)
 
 
 @router.put("/{doctor_id}", response_model=schemas.Doctor)
@@ -70,7 +70,7 @@ def update_doctor(
     try:
         return service.update_doctor(doctor_id, update)
     except APIException as e:
-        raise HTTPException(status_code=e.status_code, detail=e.detail)
+        raise HTTPException(status_code=e.status_code, detail=e.message)
 
 
 @router.delete("/{doctor_id}", status_code=204)
@@ -83,7 +83,7 @@ def delete_doctor(
         service.delete_doctor(doctor_id)
         return None
     except APIException as e:
-        raise HTTPException(status_code=e.status_code, detail=e.detail)
+        raise HTTPException(status_code=e.status_code, detail=e.message)
 
 
 @router.post("/{doctor_id}/availability")
@@ -96,4 +96,4 @@ def set_doctor_availability(
     try:
         return service.set_doctor_availability(doctor_id, is_available)
     except APIException as e:
-        raise HTTPException(status_code=e.status_code, detail=e.detail)
+        raise HTTPException(status_code=e.status_code, detail=e.message)

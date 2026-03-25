@@ -32,7 +32,7 @@ def list_bills(
             return service.get_patient_bills(patient_id, skip=skip, limit=limit)
         return service.list_bills(skip=skip, limit=limit)
     except APIException as e:
-        raise HTTPException(status_code=e.status_code, detail=e.detail)
+        raise HTTPException(status_code=e.status_code, detail=e.message)
 
 
 @router.post("/", response_model=schemas.Bill, status_code=201)
@@ -44,7 +44,7 @@ def create_bill(
     try:
         return service.create_bill(bill)
     except APIException as e:
-        raise HTTPException(status_code=e.status_code, detail=e.detail)
+        raise HTTPException(status_code=e.status_code, detail=e.message)
 
 
 @router.get("/{bill_id}", response_model=schemas.Bill)
@@ -56,7 +56,7 @@ def get_bill(
     try:
         return service.get_bill(bill_id)
     except APIException as e:
-        raise HTTPException(status_code=e.status_code, detail=e.detail)
+        raise HTTPException(status_code=e.status_code, detail=e.message)
 
 
 @router.put("/{bill_id}", response_model=schemas.Bill)
@@ -69,7 +69,7 @@ def update_bill(
     try:
         return service.update_bill(bill_id, update)
     except APIException as e:
-        raise HTTPException(status_code=e.status_code, detail=e.detail)
+        raise HTTPException(status_code=e.status_code, detail=e.message)
 
 
 @router.post("/{bill_id}/payment", response_model=schemas.Bill)
@@ -83,7 +83,7 @@ def record_payment(
     try:
         return service.record_payment(bill_id, amount, payment_method)
     except APIException as e:
-        raise HTTPException(status_code=e.status_code, detail=e.detail)
+        raise HTTPException(status_code=e.status_code, detail=e.message)
 
 
 @router.delete("/{bill_id}", status_code=204)
@@ -96,7 +96,7 @@ def delete_bill(
         service.delete_bill(bill_id)
         return None
     except APIException as e:
-        raise HTTPException(status_code=e.status_code, detail=e.detail)
+        raise HTTPException(status_code=e.status_code, detail=e.message)
 
 
 @router.post(
@@ -116,7 +116,7 @@ def generate_bill_for_admission(
             )
         )
     except APIException as e:
-        raise HTTPException(status_code=e.status_code, detail=e.detail)
+        raise HTTPException(status_code=e.status_code, detail=e.message)
 
 
 @router.get("/stats/billing", response_model=dict)
@@ -127,4 +127,4 @@ def get_billing_stats(
     try:
         return service.get_billing_stats()
     except APIException as e:
-        raise HTTPException(status_code=e.status_code, detail=e.detail)
+        raise HTTPException(status_code=e.status_code, detail=e.message)

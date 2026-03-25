@@ -50,6 +50,7 @@ def client():
 
 # ── Shared factory helpers ──────────────────────────────────────────────────────
 
+
 def make_patient(client, **overrides):
     payload = {
         "first_name": "John",
@@ -86,7 +87,7 @@ def make_appointment(client, patient_id, doctor_id, **overrides):
     payload = {
         "patient_id": patient_id,
         "doctor_id": doctor_id,
-        "appointment_date": "2025-12-01",
+        "appointment_date": "2026-12-01",
         "appointment_time": "10:00:00",
         "reason": "Routine checkup",
         **overrides,
@@ -122,7 +123,9 @@ def make_room(client, **overrides):
     return r.json()
 
 
-def make_medical_record(client, patient_id, doctor_id, appointment_id=None, **overrides):
+def make_medical_record(
+    client, patient_id, doctor_id, appointment_id=None, **overrides
+):
     payload = {
         "patient_id": patient_id,
         "doctor_id": doctor_id,

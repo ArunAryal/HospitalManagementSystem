@@ -30,16 +30,28 @@ def list_appointments(
 ):
     """List all appointments with optional filters."""
     try:
-        return service.list_appointments(
-            patient_id=patient_id,
-            doctor_id=doctor_id,
-            appointment_date=appointment_date,
-            status=status,
-            skip=skip,
-            limit=limit,
-        )
+        # Get all appointments (with pagination)
+        appointments = service.list_appointments(skip=skip, limit=limit)
+        
+        # Filter by patient_id if provided
+        if patient_id:
+            appointments = [a for a in appointments if a.patient_id == patient_id]
+        
+        # Filter by doctor_id if provided
+        if doctor_id:
+            appointments = [a for a in appointments if a.doctor_id == doctor_id]
+        
+        # Filter by appointment_date if provided
+        if appointment_date:
+            appointments = [a for a in appointments if a.appointment_date == appointment_date]
+        
+        # Filter by status if provided
+        if status:
+            appointments = [a for a in appointments if a.status == status]
+        
+        return appointments
     except APIException as e:
-        raise HTTPException(status_code=e.status_code, detail=e.detail)
+        raise HTTPException(status_code=e.status_code, detail=e.message)
 
 
 @router.post("/", response_model=schemas.Appointment, status_code=201)
@@ -51,7 +63,7 @@ def create_appointment(
     try:
         return service.create_appointment(appt)
     except APIException as e:
-        raise HTTPException(status_code=e.status_code, detail=e.detail)
+        raise HTTPException(status_code=e.status_code, detail=e.message)
 
 
 @router.get("/{appointment_id}", response_model=schemas.Appointment)
@@ -63,7 +75,7 @@ def get_appointment(
     try:
         return service.get_appointment(appointment_id)
     except APIException as e:
-        raise HTTPException(status_code=e.status_code, detail=e.detail)
+        raise HTTPException(status_code=e.status_code, detail=e.message)
 
 
 @router.put("/{appointment_id}", response_model=schemas.Appointment)
@@ -76,7 +88,7 @@ def update_appointment(
     try:
         return service.update_appointment(appointment_id, update)
     except APIException as e:
-        raise HTTPException(status_code=e.status_code, detail=e.detail)
+        raise HTTPException(status_code=e.status_code, detail=e.message)
 
 
 @router.post("/{appointment_id}/cancel")
@@ -88,7 +100,7 @@ def cancel_appointment(
     try:
         return service.cancel_appointment(appointment_id)
     except APIException as e:
-        raise HTTPException(status_code=e.status_code, detail=e.detail)
+        raise HTTPException(status_code=e.status_code, detail=e.message)
 
 
 @router.get("/patient/{patient_id}", response_model=List[schemas.Appointment])
@@ -102,7 +114,7 @@ def get_patient_appointments(
     try:
         return service.get_patient_appointments(patient_id, skip=skip, limit=limit)
     except APIException as e:
-        raise HTTPException(status_code=e.status_code, detail=e.detail)
+        raise HTTPException(status_code=e.status_code, detail=e.message)
 
 
 @router.get("/doctor/{doctor_id}", response_model=List[schemas.Appointment])
@@ -116,7 +128,7 @@ def get_doctor_appointments(
     try:
         return service.get_doctor_appointments(doctor_id, skip=skip, limit=limit)
     except APIException as e:
-        raise HTTPException(status_code=e.status_code, detail=e.detail)
+        raise HTTPException(status_code=e.status_code, detail=e.message)
 
 
 @router.delete("/{appointment_id}", status_code=204)
@@ -129,4 +141,4 @@ def delete_appointment(
         service.delete_appointment(appointment_id)
         return None
     except APIException as e:
-        raise HTTPException(status_code=e.status_code, detail=e.detail)
+        raise HTTPException(status_code=e.status_code, detail=e.message)

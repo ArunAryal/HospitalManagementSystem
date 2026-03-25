@@ -9,7 +9,6 @@ import PatientModal from '@/components/patients/PatientModal';
 import AppointmentModal from '@/components/appointments/AppointmentModal';
 import MedicalRecordModal from '@/components/medical-records/MedicalRecordModal';
 import AdmitPatientModal from '@/components/rooms/AdmitPatientModal';
-import CreateBillModal from '@/components/billing/CreateBillModal';
 import Link from 'next/link';
 
 export default function DashboardPage() {
@@ -21,7 +20,6 @@ export default function DashboardPage() {
   const [apptModal, setApptModal] = useState(false);
   const [recordModal, setRecordModal] = useState(false);
   const [admitModal, setAdmitModal] = useState(false);
-  const [billModal, setBillModal] = useState(false);
   
   const reload = async () => {
     // Only reload the relevant parts, or full reload
@@ -145,7 +143,6 @@ export default function DashboardPage() {
           <button className="btn-secondary text-xs py-1.5" onClick={() => setApptModal(true)}>+ Book Appointment</button>
           <button className="btn-secondary text-xs py-1.5" onClick={() => setRecordModal(true)}>+ Medical Record</button>
           <button className="btn-secondary text-xs py-1.5" onClick={() => setAdmitModal(true)}>+ Admit Patient</button>
-          <button className="btn-secondary text-xs py-1.5" onClick={() => setBillModal(true)}>+ Create Bill</button>
         </div>
       </div>
 
@@ -154,7 +151,6 @@ export default function DashboardPage() {
       <AppointmentModal open={apptModal} onClose={() => setApptModal(false)} appointment={null} onSaved={() => { setApptModal(false); reload(); }} />
       <MedicalRecordModal open={recordModal} onClose={() => setRecordModal(false)} record={null} onSaved={() => { setRecordModal(false); reload(); }} />
       <AdmitPatientModal open={admitModal} onClose={() => setAdmitModal(false)} onSaved={() => { setAdmitModal(false); reload(); }} />
-      <CreateBillModal open={billModal} onClose={() => setBillModal(false)} onSaved={() => { setBillModal(false); reload(); }} />
     </div>
   );
 }

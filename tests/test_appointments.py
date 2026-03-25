@@ -8,7 +8,7 @@ class TestCreateAppointment:
         r = client.post("/appointments/", json={
             "patient_id": p["patient_id"],
             "doctor_id": d["doctor_id"],
-            "appointment_date": "2025-12-01",
+            "appointment_date": "2026-12-01",
             "appointment_time": "09:00:00",
             "reason": "Chest pain",
         })
@@ -20,7 +20,7 @@ class TestCreateAppointment:
         r = client.post("/appointments/", json={
             "patient_id": 99999,
             "doctor_id": d["doctor_id"],
-            "appointment_date": "2025-12-01",
+            "appointment_date": "2026-12-01",
             "appointment_time": "09:00:00",
         })
         assert r.status_code == 404
@@ -32,35 +32,35 @@ class TestCreateAppointment:
         r = client.post("/appointments/", json={
             "patient_id": p["patient_id"],
             "doctor_id": d["doctor_id"],
-            "appointment_date": "2025-12-01",
+            "appointment_date": "2026-12-01",
             "appointment_time": "09:00:00",
         })
         assert r.status_code == 400
 
     def test_conflict_rejected(self, client):
-        p = make_patient(client, phone="111")
-        p2 = make_patient(client, phone="222")
+        p = make_patient(client, phone="9800000111")
+        p2 = make_patient(client, phone="9800000222")
         d = make_doctor(client)
         make_appointment(client, p["patient_id"], d["doctor_id"],
-                         appointment_date="2025-12-01", appointment_time="10:00:00")
+                         appointment_date="2026-12-01", appointment_time="10:00:00")
         r = client.post("/appointments/", json={
             "patient_id": p2["patient_id"],
             "doctor_id": d["doctor_id"],
-            "appointment_date": "2025-12-01",
+            "appointment_date": "2026-12-01",
             "appointment_time": "10:00:00",
         })
         assert r.status_code == 409
 
     def test_same_doctor_different_time_allowed(self, client):
-        p = make_patient(client, phone="333")
-        p2 = make_patient(client, phone="444")
+        p = make_patient(client, phone="9800000333")
+        p2 = make_patient(client, phone="9800000444")
         d = make_doctor(client)
         make_appointment(client, p["patient_id"], d["doctor_id"],
-                         appointment_date="2025-12-01", appointment_time="10:00:00")
+                         appointment_date="2026-12-01", appointment_time="10:00:00")
         r = client.post("/appointments/", json={
             "patient_id": p2["patient_id"],
             "doctor_id": d["doctor_id"],
-            "appointment_date": "2025-12-01",
+            "appointment_date": "2026-12-01",
             "appointment_time": "11:00:00",
         })
         assert r.status_code == 201
@@ -80,8 +80,8 @@ class TestGetAppointment:
 
 class TestListAppointments:
     def test_filter_by_patient(self, client):
-        p1 = make_patient(client, phone="001")
-        p2 = make_patient(client, phone="002")
+        p1 = make_patient(client, phone="9800000001")
+        p2 = make_patient(client, phone="9800000002")
         d = make_doctor(client)
         make_appointment(client, p1["patient_id"], d["doctor_id"], appointment_time="08:00:00")
         make_appointment(client, p2["patient_id"], d["doctor_id"], appointment_time="09:00:00")
@@ -92,11 +92,11 @@ class TestListAppointments:
         p = make_patient(client)
         d = make_doctor(client)
         make_appointment(client, p["patient_id"], d["doctor_id"],
-                         appointment_date="2025-11-01", appointment_time="08:00:00")
+                         appointment_date="2026-11-01", appointment_time="08:00:00")
         make_appointment(client, p["patient_id"], d["doctor_id"],
-                         appointment_date="2025-12-01", appointment_time="09:00:00")
+                         appointment_date="2026-12-01", appointment_time="09:00:00")
         r = client.get("/appointments/?appointment_date=2025-11-01")
-        assert all(a["appointment_date"] == "2025-11-01" for a in r.json())
+        assert all(a["appointment_date"] == "2026-11-01" for a in r.json())
 
     def test_filter_by_status(self, client):
         p = make_patient(client)

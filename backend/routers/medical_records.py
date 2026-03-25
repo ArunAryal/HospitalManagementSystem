@@ -35,7 +35,7 @@ def list_medical_records(
             return service.get_doctor_medical_records(doctor_id, skip=skip, limit=limit)
         return service.list_medical_records(skip=skip, limit=limit)
     except APIException as e:
-        raise HTTPException(status_code=e.status_code, detail=e.detail)
+        raise HTTPException(status_code=e.status_code, detail=e.message)
 
 
 @router.post("/", response_model=schemas.MedicalRecord, status_code=201)
@@ -47,7 +47,7 @@ def create_medical_record(
     try:
         return service.create_medical_record(record)
     except APIException as e:
-        raise HTTPException(status_code=e.status_code, detail=e.detail)
+        raise HTTPException(status_code=e.status_code, detail=e.message)
 
 
 @router.get("/{record_id}", response_model=schemas.MedicalRecord)
@@ -59,7 +59,7 @@ def get_medical_record(
     try:
         return service.get_medical_record(record_id)
     except APIException as e:
-        raise HTTPException(status_code=e.status_code, detail=e.detail)
+        raise HTTPException(status_code=e.status_code, detail=e.message)
 
 
 @router.put("/{record_id}", response_model=schemas.MedicalRecord)
@@ -72,7 +72,7 @@ def update_medical_record(
     try:
         return service.update_medical_record(record_id, update)
     except APIException as e:
-        raise HTTPException(status_code=e.status_code, detail=e.detail)
+        raise HTTPException(status_code=e.status_code, detail=e.message)
 
 
 @router.delete("/{record_id}", status_code=204)
@@ -85,7 +85,7 @@ def delete_medical_record(
         service.delete_medical_record(record_id)
         return None
     except APIException as e:
-        raise HTTPException(status_code=e.status_code, detail=e.detail)
+        raise HTTPException(status_code=e.status_code, detail=e.message)
 
 
 @router.get("/{record_id}/prescriptions", response_model=List[schemas.Prescription])

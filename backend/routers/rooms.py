@@ -44,7 +44,7 @@ def list_rooms(
             return service.list_available_rooms(skip=skip, limit=limit)
         return service.list_rooms(skip=skip, limit=limit)
     except APIException as e:
-        raise HTTPException(status_code=e.status_code, detail=e.detail)
+        raise HTTPException(status_code=e.status_code, detail=e.message)
 
 
 @router.post("/rooms", response_model=schemas.Room, status_code=201)
@@ -56,7 +56,7 @@ def create_room(
     try:
         return service.create_room(room)
     except APIException as e:
-        raise HTTPException(status_code=e.status_code, detail=e.detail)
+        raise HTTPException(status_code=e.status_code, detail=e.message)
 
 
 @router.get("/rooms/{room_id}", response_model=schemas.Room)
@@ -68,7 +68,7 @@ def get_room(
     try:
         return service.get_room(room_id)
     except APIException as e:
-        raise HTTPException(status_code=e.status_code, detail=e.detail)
+        raise HTTPException(status_code=e.status_code, detail=e.message)
 
 
 @router.put("/rooms/{room_id}", response_model=schemas.Room)
@@ -81,7 +81,7 @@ def update_room(
     try:
         return service.update_room(room_id, update)
     except APIException as e:
-        raise HTTPException(status_code=e.status_code, detail=e.detail)
+        raise HTTPException(status_code=e.status_code, detail=e.message)
 
 
 @router.delete("/rooms/{room_id}", status_code=204)
@@ -94,7 +94,7 @@ def delete_room(
         service.delete_room(room_id)
         return None
     except APIException as e:
-        raise HTTPException(status_code=e.status_code, detail=e.detail)
+        raise HTTPException(status_code=e.status_code, detail=e.message)
 
 
 @router.get("/rooms/stats/occupancy", response_model=dict)
@@ -105,7 +105,7 @@ def get_occupancy_stats(
     try:
         return service.get_room_occupancy_stats()
     except APIException as e:
-        raise HTTPException(status_code=e.status_code, detail=e.detail)
+        raise HTTPException(status_code=e.status_code, detail=e.message)
 
 
 # ── Admissions ─────────────────────────────────────────────────────────────────
@@ -124,7 +124,7 @@ def list_admissions(
             return service.get_patient_admissions(patient_id, skip=skip, limit=limit)
         return service.list_admissions(skip=skip, limit=limit)
     except APIException as e:
-        raise HTTPException(status_code=e.status_code, detail=e.detail)
+        raise HTTPException(status_code=e.status_code, detail=e.message)
 
 
 @router.post("/admissions", response_model=schemas.Admission, status_code=201)
@@ -136,7 +136,7 @@ def admit_patient(
     try:
         return service.admit_patient(admission)
     except APIException as e:
-        raise HTTPException(status_code=e.status_code, detail=e.detail)
+        raise HTTPException(status_code=e.status_code, detail=e.message)
 
 
 @router.get("/admissions/{admission_id}", response_model=schemas.Admission)
@@ -148,7 +148,7 @@ def get_admission(
     try:
         return service.get_admission(admission_id)
     except APIException as e:
-        raise HTTPException(status_code=e.status_code, detail=e.detail)
+        raise HTTPException(status_code=e.status_code, detail=e.message)
 
 
 @router.put("/admissions/{admission_id}", response_model=schemas.Admission)
@@ -161,7 +161,7 @@ def update_admission(
     try:
         return service.update_admission(admission_id, update)
     except APIException as e:
-        raise HTTPException(status_code=e.status_code, detail=e.detail)
+        raise HTTPException(status_code=e.status_code, detail=e.message)
 
 
 @router.patch("/admissions/{admission_id}/discharge", response_model=schemas.Admission)
@@ -174,7 +174,7 @@ def discharge_patient(
     try:
         return service.discharge_patient(admission_id)
     except APIException as e:
-        raise HTTPException(status_code=e.status_code, detail=e.detail)
+        raise HTTPException(status_code=e.status_code, detail=e.message)
 
 
 @router.get("/admissions/active", response_model=List[schemas.Admission])
@@ -187,7 +187,7 @@ def get_active_admissions(
     try:
         return service.get_active_admissions(skip=skip, limit=limit)
     except APIException as e:
-        raise HTTPException(status_code=e.status_code, detail=e.detail)
+        raise HTTPException(status_code=e.status_code, detail=e.message)
 
 
 @router.delete("/admissions/{admission_id}", status_code=204)
@@ -200,7 +200,7 @@ def delete_admission(
         service.delete_admission(admission_id)
         return None
     except APIException as e:
-        raise HTTPException(status_code=e.status_code, detail=e.detail)
+        raise HTTPException(status_code=e.status_code, detail=e.message)
 
 
 @router.get("/admissions/stats", response_model=dict)
@@ -211,4 +211,4 @@ def get_admission_stats(
     try:
         return service.get_admission_statistics()
     except APIException as e:
-        raise HTTPException(status_code=e.status_code, detail=e.detail)
+        raise HTTPException(status_code=e.status_code, detail=e.message)

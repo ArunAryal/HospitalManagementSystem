@@ -33,7 +33,7 @@ def list_medicines(
             return service.get_low_stock_medicines(skip=skip, limit=limit)
         return service.list_medicines(skip=skip, limit=limit)
     except APIException as e:
-        raise HTTPException(status_code=e.status_code, detail=e.detail)
+        raise HTTPException(status_code=e.status_code, detail=e.message)
 
 
 @router.post("/", response_model=schemas.Medicine, status_code=201)
@@ -45,7 +45,7 @@ def create_medicine(
     try:
         return service.create_medicine(medicine)
     except APIException as e:
-        raise HTTPException(status_code=e.status_code, detail=e.detail)
+        raise HTTPException(status_code=e.status_code, detail=e.message)
 
 
 @router.get("/low-stock", response_model=List[schemas.Medicine])
@@ -56,7 +56,7 @@ def get_low_stock_medicines(
     try:
         return service.get_low_stock_medicines(skip=0, limit=999999)
     except APIException as e:
-        raise HTTPException(status_code=e.status_code, detail=e.detail)
+        raise HTTPException(status_code=e.status_code, detail=e.message)
 
 
 @router.get("/{medicine_id}", response_model=schemas.Medicine)
@@ -68,7 +68,7 @@ def get_medicine(
     try:
         return service.get_medicine(medicine_id)
     except APIException as e:
-        raise HTTPException(status_code=e.status_code, detail=e.detail)
+        raise HTTPException(status_code=e.status_code, detail=e.message)
 
 
 @router.put("/{medicine_id}", response_model=schemas.Medicine)
@@ -81,7 +81,7 @@ def update_medicine(
     try:
         return service.update_medicine(medicine_id, update)
     except APIException as e:
-        raise HTTPException(status_code=e.status_code, detail=e.detail)
+        raise HTTPException(status_code=e.status_code, detail=e.message)
 
 
 @router.patch("/{medicine_id}/restock", response_model=schemas.Medicine)
@@ -94,7 +94,7 @@ def restock_medicine(
     try:
         return service.restock_medicine(medicine_id, quantity)
     except APIException as e:
-        raise HTTPException(status_code=e.status_code, detail=e.detail)
+        raise HTTPException(status_code=e.status_code, detail=e.message)
 
 
 @router.delete("/{medicine_id}", status_code=204)
@@ -107,7 +107,7 @@ def delete_medicine(
         service.delete_medicine(medicine_id)
         return None
     except APIException as e:
-        raise HTTPException(status_code=e.status_code, detail=e.detail)
+        raise HTTPException(status_code=e.status_code, detail=e.message)
 
 
 @router.get("/stats/inventory", response_model=dict)
@@ -118,4 +118,4 @@ def get_inventory_stats(
     try:
         return service.get_inventory_stats()
     except APIException as e:
-        raise HTTPException(status_code=e.status_code, detail=e.detail)
+        raise HTTPException(status_code=e.status_code, detail=e.message)
