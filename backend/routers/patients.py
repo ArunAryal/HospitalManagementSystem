@@ -1,77 +1,71 @@
-from fastapi import APIRouter, Depends, HTTPException, status
+from fastapi import APIRouter, Depends, HTTPException, Query
 from sqlalchemy.orm import Session
-from typing import List
+from sqlalchemy import or_
+from typing import Optional
 from backend.database import get_db
 from backend import models, schemas
 
-router = APIRouter(
-    prefix="/patients",
-    tags=["Patients"]
-)
+router = APIRouter(prefix="/patients", tags=["Patients"])
 
-@router.post("/", response_model=schemas.Patient, status_code=status.HTTP_201_CREATED)
+
+@router.get("/", response_model=list[schemas.Patient])
+def list_patients(
+    search: Optional[str] = Query(None, description="Search by name or phone"),
+    skip: int = Query(0, ge=0),
+    limit: int = Query(100, ge=1, le=500),
+    db: Session = Depends(get_db),
+):
+    query = db.query(models.Patient)
+    if search:
+        like = f"%{search}%"
+        query = query.filter(
+            or_(
+                models.Patient.first_name.ilike(like),
+                models.Patient.last_name.ilike(like),
+                models.Patient.phone.ilike(like),
+            )
+        )
+    return query.offset(skip).limit(limit).all()
+
+
+@router.post("/", response_model=schemas.Patient, status_code=201)
 def create_patient(patient: schemas.PatientCreate, db: Session = Depends(get_db)):
-    """Create a new patient"""
-    db_patient = models.Patient(**patient.dict())
+    existing = db.query(models.Patient).filter(models.Patient.phone == patient.phone).first()
+    if existing:
+        raise HTTPException(status_code=400, detail="Patient with this phone number already exists")
+    db_patient = models.Patient(**patient.model_dump())
     db.add(db_patient)
     db.commit()
     db.refresh(db_patient)
     return db_patient
 
-@router.get("/", response_model=List[schemas.Patient])
-def get_patients(skip: int = 0, limit: int = 100, db: Session = Depends(get_db)):
-    """Get all patients"""
-    patients = db.query(models.Patient).offset(skip).limit(limit).all()
-    return patients
 
 @router.get("/{patient_id}", response_model=schemas.Patient)
 def get_patient(patient_id: int, db: Session = Depends(get_db)):
-    """Get a specific patient by ID"""
     patient = db.query(models.Patient).filter(models.Patient.patient_id == patient_id).first()
     if not patient:
         raise HTTPException(status_code=404, detail="Patient not found")
     return patient
 
+
 @router.put("/{patient_id}", response_model=schemas.Patient)
-def update_patient(patient_id: int, patient_update: schemas.PatientUpdate, db: Session = Depends(get_db)):
-    """Update patient information"""
-    db_patient = db.query(models.Patient).filter(models.Patient.patient_id == patient_id).first()
-    if not db_patient:
+def update_patient(
+    patient_id: int, update: schemas.PatientUpdate, db: Session = Depends(get_db)
+):
+    patient = db.query(models.Patient).filter(models.Patient.patient_id == patient_id).first()
+    if not patient:
         raise HTTPException(status_code=404, detail="Patient not found")
-    
-    update_data = patient_update.dict(exclude_unset=True)
-    for key, value in update_data.items():
-        setattr(db_patient, key, value)
-    
+    for field, value in update.model_dump(exclude_unset=True).items():
+        setattr(patient, field, value)
     db.commit()
-    db.refresh(db_patient)
-    return db_patient
+    db.refresh(patient)
+    return patient
 
-@router.delete("/{patient_id}", status_code=status.HTTP_204_NO_CONTENT)
+
+@router.delete("/{patient_id}", status_code=204)
 def delete_patient(patient_id: int, db: Session = Depends(get_db)):
-    """Delete a patient"""
-    db_patient = db.query(models.Patient).filter(models.Patient.patient_id == patient_id).first()
-    if not db_patient:
+    patient = db.query(models.Patient).filter(models.Patient.patient_id == patient_id).first()
+    if not patient:
         raise HTTPException(status_code=404, detail="Patient not found")
-    
-    db.delete(db_patient)
+    db.delete(patient)
     db.commit()
-    return None
-
-@router.get("/{patient_id}/appointments", response_model=List[schemas.Appointment])
-def get_patient_appointments(patient_id: int, db: Session = Depends(get_db)):
-    """Get all appointments for a specific patient"""
-    patient = db.query(models.Patient).filter(models.Patient.patient_id == patient_id).first()
-    if not patient:
-        raise HTTPException(status_code=404, detail="Patient not found")
-    
-    return patient.appointments
-
-@router.get("/{patient_id}/medical-records", response_model=List[schemas.MedicalRecord])
-def get_patient_medical_records(patient_id: int, db: Session = Depends(get_db)):
-    """Get all medical records for a specific patient"""
-    patient = db.query(models.Patient).filter(models.Patient.patient_id == patient_id).first()
-    if not patient:
-        raise HTTPException(status_code=404, detail="Patient not found")
-    
-    return patient.medical_records
