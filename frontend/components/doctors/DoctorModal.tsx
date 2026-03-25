@@ -33,6 +33,10 @@ export default function DoctorModal({ open, onClose, doctor, onSaved }: {
       setError('First name, last name, specialization and fee are required.');
       return;
     }
+    if (!form.email) {
+      setError('Email is required.');
+      return;
+    }
     setLoading(true);
     setError('');
     try {
@@ -43,7 +47,7 @@ export default function DoctorModal({ open, onClose, doctor, onSaved }: {
       }
       onSaved();
     } catch (e: any) {
-      setError(e.message);
+      setError(e?.message || e?.toString?.() || 'An error occurred');
     } finally {
       setLoading(false);
     }
@@ -77,7 +81,7 @@ export default function DoctorModal({ open, onClose, doctor, onSaved }: {
         <Field label="Phone">
           <input className="input" value={form.phone ?? ''} onChange={e => set('phone', e.target.value || undefined)} />
         </Field>
-        <Field label="Email">
+        <Field label="Email" required>
           <input type="email" className="input" value={form.email ?? ''} onChange={e => set('email', e.target.value || undefined)} />
         </Field>
         <div className="col-span-3 flex items-center gap-2.5">

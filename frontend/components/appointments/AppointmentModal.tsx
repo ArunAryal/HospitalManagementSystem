@@ -58,7 +58,7 @@ export default function AppointmentModal({ open, onClose, appointment, onSaved }
       }
       onSaved();
     } catch (e: any) {
-      setError(e.message);
+      setError(e?.message || e?.toString?.() || 'An error occurred');
     } finally {
       setLoading(false);
     }

@@ -7,7 +7,21 @@ async function request<T>(path: string, options?: RequestInit): Promise<T> {
   });
   if (!res.ok) {
     const err = await res.json().catch(() => ({ detail: res.statusText }));
-    throw new Error(err.detail || 'Request failed');
+    
+    // Handle Pydantic validation errors (array of errors)
+    if (Array.isArray(err.detail)) {
+      const messages = err.detail.map((e: any) => 
+        `${e.loc?.[1] || 'Field'}: ${e.msg}`
+      ).join('; ');
+      throw new Error(messages || 'Validation error');
+    }
+    
+    // Handle regular error messages (string)
+    throw new Error(
+      (typeof err.detail === 'string' ? err.detail : null) || 
+      err.message || 
+      'Request failed'
+    );
   }
   if (res.status === 204) return null as any;
   return res.json();

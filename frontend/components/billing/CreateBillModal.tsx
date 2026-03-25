@@ -46,7 +46,7 @@ export default function CreateBillModal({ open, onClose, onSaved }: CreateBillMo
       setForm({ patient_id: 0, total_amount: 0 });
       onSaved();
     } catch (e: any) {
-      setError(e.message);
+      setError(e?.message || e?.toString?.() || 'An error occurred');
     } finally {
       setSaving(false);
     }

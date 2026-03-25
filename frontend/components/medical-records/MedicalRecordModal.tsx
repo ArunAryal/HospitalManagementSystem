@@ -51,7 +51,7 @@ export default function MedicalRecordModal({ open, onClose, record, onSaved }: {
       }
       onSaved();
     } catch (e: any) {
-      setError(e.message);
+      setError(e?.message || e?.toString?.() || 'An error occurred');
     } finally {
       setLoading(false);
     }

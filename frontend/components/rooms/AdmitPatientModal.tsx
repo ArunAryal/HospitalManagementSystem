@@ -72,7 +72,7 @@ export default function AdmitPatientModal({ open, onClose, onSaved, initialRoomI
       });
       onSaved();
     } catch (e: any) {
-      setError(e.message);
+      setError(e?.message || e?.toString?.() || 'An error occurred');
     } finally {
       setSaving(false);
     }

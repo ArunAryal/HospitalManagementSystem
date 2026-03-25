@@ -49,7 +49,7 @@ export default function PatientModal({ open, onClose, patient, onSaved }: {
       }
       onSaved();
     } catch (e: any) {
-      setError(e.message);
+      setError(e?.message || e?.toString?.() || 'An error occurred');
     } finally {
       setLoading(false);
     }
