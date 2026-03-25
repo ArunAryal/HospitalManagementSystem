@@ -67,9 +67,9 @@ export const appointmentsApi = {
   update: (id: number, data: any) =>
     request<any>(`/appointments/${id}`, { method: 'PUT', body: JSON.stringify(data) }),
   updateStatus: (id: number, status: string) =>
-    request<any>(`/appointments/${id}/status`, {
-      method: 'PATCH',
-      body: JSON.stringify({ status }),
+    request<any>(`/appointments/${id}`, { 
+      method: 'PUT', 
+      body: JSON.stringify({ status }) 
     }),
   delete: (id: number) =>
     request<any>(`/appointments/${id}`, { method: 'DELETE' }),
