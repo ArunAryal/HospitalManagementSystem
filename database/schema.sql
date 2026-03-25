@@ -212,6 +212,16 @@ BEGIN
     WHERE medicine_id = NEW.medicine_id;
 END//
 
+-- Trigger to restore medicine stock when prescription is deleted
+CREATE TRIGGER after_prescription_delete
+AFTER DELETE ON prescriptions
+FOR EACH ROW
+BEGIN
+    UPDATE medicines 
+    SET stock_quantity = stock_quantity + OLD.quantity
+    WHERE medicine_id = OLD.medicine_id;
+END//
+
 DELIMITER ;
 
 -- Stored Procedure: Calculate Bill Amount

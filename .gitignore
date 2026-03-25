@@ -9,4 +9,11 @@ wheels/
 # Virtual environments
 .venv
 
+# dot env file 
 .env
+
+# Node.js and npm
+node_modules/
+.next/
+npm-debug.log
+yarn-error.log
