@@ -51,10 +51,10 @@ export default function MedicinesPage() {
       } else {
         await medicinesApi.create(form);
       }
-      setModalOpen(false);
       load();
-    } catch (e: any) { setError(e.message); }
+    } catch (e: any) { setError(e.message); return; }
     finally { setSaving(false); }
+    setModalOpen(false);
   };
 
   const [deleting, setDeleting] = useState(false);

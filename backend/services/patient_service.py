@@ -7,7 +7,7 @@ business logic from route handlers.
 
 from typing import Optional, List, Dict, Any
 from sqlalchemy.orm import Session
-from sqlalchemy import or_
+from sqlalchemy import or_, desc
 
 from backend import models, schemas
 from backend.exceptions import (
@@ -99,6 +99,29 @@ class PatientRepository:
     def count(self) -> int:
         """Get total patient count."""
         return self.db.query(models.Patient).count()
+
+    def get_recent_doctor(self, patient_id: int) -> Optional[models.Doctor]:
+        """Get the most recent doctor for a patient from medical records."""
+        recent_record = (
+            self.db.query(models.MedicalRecord)
+            .filter(models.MedicalRecord.patient_id == patient_id)
+            .order_by(desc(models.MedicalRecord.record_date))
+            .first()
+        )
+        if recent_record:
+            return recent_record.doctor
+
+        # Fallback to most recent appointment if no medical record exists
+        recent_appointment = (
+            self.db.query(models.Appointment)
+            .filter(models.Appointment.patient_id == patient_id)
+            .order_by(desc(models.Appointment.appointment_date))
+            .first()
+        )
+        if recent_appointment:
+            return recent_appointment.doctor
+
+        return None
 
 
 class PatientService:
@@ -210,4 +233,17 @@ class PatientService:
         return {
             "total_patients": total_count,
             "active_patients": total_count,  # Could be refined with additional logic
+        }
+
+    def get_patient_with_doctor(self, patient_id: int) -> Dict[str, Any]:
+        """Get patient with their most recent doctor information."""
+        patient = self.repository.get_by_id(patient_id)
+        if not patient:
+            raise ResourceNotFoundError("Patient", patient_id)
+
+        doctor = self.repository.get_recent_doctor(patient_id)
+
+        return {
+            "patient": schemas.Patient.model_validate(patient),
+            "doctor": schemas.DoctorShort.model_validate(doctor) if doctor else None,
         }

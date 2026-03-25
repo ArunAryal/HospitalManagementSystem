@@ -31,7 +31,10 @@ async function request<T>(path: string, options?: RequestInit): Promise<T> {
 export const patientsApi = {
   list: (skip = 0, limit = 100) =>
     request<any[]>(`/patients/?skip=${skip}&limit=${limit}`),
+  search: (query: string, skip = 0, limit = 100) =>
+    request<any[]>(`/patients/?search=${encodeURIComponent(query)}&skip=${skip}&limit=${limit}`),
   get: (id: number) => request<any>(`/patients/${id}`),
+  getWithDoctor: (id: number) => request<any>(`/patients/${id}/with-doctor`),
   create: (data: any) =>
     request<any>('/patients/', { method: 'POST', body: JSON.stringify(data) }),
   update: (id: number, data: any) =>

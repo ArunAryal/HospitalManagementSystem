@@ -43,6 +43,29 @@ def create_patient(
         raise HTTPException(status_code=e.status_code, detail=e.message)
 
 
+@router.get("/stats", response_model=dict)
+def get_patient_stats(
+    service: PatientService = Depends(get_patient_service),
+):
+    """Get patient statistics."""
+    try:
+        return service.get_patient_stats()
+    except APIException as e:
+        raise HTTPException(status_code=e.status_code, detail=e.message)
+
+
+@router.get("/{patient_id}/with-doctor", response_model=dict)
+def get_patient_with_doctor(
+    patient_id: int,
+    service: PatientService = Depends(get_patient_service),
+):
+    """Get patient with their most recent doctor information."""
+    try:
+        return service.get_patient_with_doctor(patient_id)
+    except APIException as e:
+        raise HTTPException(status_code=e.status_code, detail=e.message)
+
+
 @router.get("/{patient_id}", response_model=schemas.Patient)
 def get_patient(
     patient_id: int,
@@ -77,16 +100,5 @@ def delete_patient(
     try:
         service.delete_patient(patient_id)
         return None
-    except APIException as e:
-        raise HTTPException(status_code=e.status_code, detail=e.message)
-
-
-@router.get("/stats", response_model=dict)
-def get_patient_stats(
-    service: PatientService = Depends(get_patient_service),
-):
-    """Get patient statistics."""
-    try:
-        return service.get_patient_stats()
     except APIException as e:
         raise HTTPException(status_code=e.status_code, detail=e.message)
