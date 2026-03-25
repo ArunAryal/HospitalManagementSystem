@@ -72,13 +72,15 @@ def validate_age(dob: date) -> bool:
 
 
 def validate_future_date(target_date: date) -> bool:
-    """Validate that date is in the future."""
-    return target_date > datetime.now().date()
+    """Validate that date is in the future (strictly after today)."""
+    today = datetime.now().date()
+    return target_date > today
 
 
 def validate_date_not_past(target_date: date) -> bool:
-    """Validate that date is not in the past."""
-    return target_date >= datetime.now().date()
+    """Validate that date is today or in the future."""
+    today = datetime.now().date()
+    return target_date >= today
 
 
 def sanitize_string(value: str) -> str:

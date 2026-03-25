@@ -96,12 +96,26 @@ export const ValidationRules = {
   }),
 
   futureDate: (message = 'Date must be in the future'): ValidationRule => ({
-    validate: (v) => new Date(v) > new Date(),
+    validate: (v) => {
+      const inputDate = new Date(v);
+      const today = new Date();
+      // Compare only the date part (set time to 00:00 for both)
+      inputDate.setHours(0, 0, 0, 0);
+      today.setHours(0, 0, 0, 0);
+      return inputDate > today;
+    },
     message,
   }),
 
   pastDate: (message = 'Date must be in the past'): ValidationRule => ({
-    validate: (v) => new Date(v) < new Date(),
+    validate: (v) => {
+      const inputDate = new Date(v);
+      const today = new Date();
+      // Compare only the date part (set time to 00:00 for both)
+      inputDate.setHours(0, 0, 0, 0);
+      today.setHours(0, 0, 0, 0);
+      return inputDate < today;
+    },
     message,
   }),
 
