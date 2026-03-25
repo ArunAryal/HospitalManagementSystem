@@ -185,7 +185,17 @@ mariadb -u <user> -p < database/schema.sql
 ```
 
 #### Environment Variables
-Create `backend/.env`:
+Create `.env` in the **project root** (not in backend folder):
+
+```bash
+# Copy from template
+cp .env.example .env
+
+# Edit with your settings
+nano .env
+```
+
+Basic configuration (`.env`):
 ```env
 DB_HOST=localhost
 DB_PORT=3306
@@ -194,7 +204,7 @@ DB_PASSWORD=yourpassword
 DB_NAME=hospital_management
 ```
 
-**Advanced Configuration** (optional):
+**Full Configuration** (optional):
 ```env
 # Application environment
 ENVIRONMENT=development  # or production
@@ -205,13 +215,13 @@ API_TITLE=Hospital Management System API
 API_VERSION=1.0.0
 API_PREFIX=/api/v1
 
-# Database (same as above)
+# Database
 DB_HOST=localhost
 DB_PORT=3306
 DB_USER=root
-DB_PASSWORD=
+DB_PASSWORD=your_secure_password
 DB_NAME=hospital_management
-DB_ECHO=false           # Log SQL queries
+DB_ECHO=false           # Log SQL queries (set to true for debugging)
 
 # CORS Configuration
 CORS_ORIGINS=["http://localhost:3000", "http://localhost:8000"]
@@ -231,6 +241,13 @@ PAGINATION_DEFAULT_SKIP=0
 # Logging
 LOG_LEVEL=DEBUG
 ```
+
+**Note**: The `.env` file is loaded from the **project root** when running:
+```bash
+uv run uvicorn backend.main:app --reload
+```
+
+Never commit `.env` — it contains sensitive credentials. Use `.env.example` as a template for sharing with team members.
 
 #### Run Backend Server
 ```bash
