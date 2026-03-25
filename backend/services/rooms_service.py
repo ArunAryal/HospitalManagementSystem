@@ -63,7 +63,7 @@ class RoomRepository:
         """Get available rooms (occupancy < capacity)."""
         return (
             self.db.query(models.Room)
-            .filter(models.Room.occupancy < models.Room.capacity)
+            .filter(models.Room.current_occupancy < models.Room.capacity)
             .order_by(models.Room.room_number)
             .offset(skip)
             .limit(limit)
@@ -90,7 +90,7 @@ class RoomRepository:
         if not room:
             raise ResourceNotFoundError("Room", room_id)
 
-        room.occupancy = occupancy
+        room.current_occupancy = occupancy
         self.db.commit()
         self.db.refresh(room)
         return room
@@ -230,12 +230,6 @@ class RoomService:
                 field_errors={"capacity": "Capacity must be greater than 0"},
             )
 
-        if room_data.occupancy > room_data.capacity:
-            raise ValidationError(
-                "Invalid occupancy",
-                field_errors={"occupancy": "Occupancy cannot exceed capacity"},
-            )
-
         room = self.repository.create(room_data)
         self.logger.log_operation(
             "Room created", f"ID: {room.room_id}, Number: {room.room_number}"
@@ -285,9 +279,9 @@ class RoomService:
                     "Invalid capacity",
                     field_errors={"capacity": "Capacity must be greater than 0"},
                 )
-            if room.occupancy > update_data.capacity:
+            if room.current_occupancy > update_data.capacity:
                 raise InvalidOperationError(
-                    f"Cannot reduce capacity below current occupancy ({room.occupancy})"
+                    f"Cannot reduce capacity below current occupancy ({room.current_occupancy})"
                 )
 
         room = self.repository.update(room_id, update_data)
@@ -358,6 +352,7 @@ class AdmissionService:
         - Patient exists
         - Doctor exists
         - Room exists and has capacity
+        - Patient does not already have an active admission
         - Admission date is valid
         """
         # Verify patient
@@ -368,6 +363,20 @@ class AdmissionService:
         )
         if not patient:
             raise ResourceNotFoundError("Patient", admission_data.patient_id)
+
+        # Check if patient already has an active admission
+        existing_admission = (
+            self.db.query(models.Admission)
+            .filter(
+                models.Admission.patient_id == admission_data.patient_id,
+                models.Admission.discharge_date.is_(None),
+            )
+            .first()
+        )
+        if existing_admission:
+            raise InvalidOperationError(
+                "Patient already has an active admission. Discharge the patient from their current room first."
+            )
 
         # Verify doctor
         doctor = (
@@ -383,14 +392,11 @@ class AdmissionService:
         if not room:
             raise ResourceNotFoundError("Room", admission_data.room_id)
 
-        if room.occupancy >= room.capacity:
+        if room.current_occupancy >= room.capacity:
             raise InvalidOperationError("Room is at full capacity")
 
-        # Create admission
+        # Create admission (database trigger will update room occupancy)
         admission = self.repository.create(admission_data)
-
-        # Update room occupancy
-        self.room_repository.update_occupancy(room.room_id, room.occupancy + 1)
 
         self.logger.log_operation(
             "Patient admitted",
@@ -438,7 +444,13 @@ class AdmissionService:
         return [schemas.Admission.model_validate(a) for a in admissions]
 
     def discharge_patient(self, admission_id: int) -> schemas.Admission:
-        """Discharge a patient from admission."""
+        """
+        Discharge a patient from admission.
+        
+        This method:
+        1. Sets discharge date and updates status to "Discharged"
+        2. Automatically generates/updates a bill with room and medicine charges
+        """
         admission = self.repository.get_by_id(admission_id)
         if not admission:
             raise ResourceNotFoundError("Admission", admission_id)
@@ -446,16 +458,28 @@ class AdmissionService:
         if admission.discharge_date is not None:
             raise InvalidOperationError("Patient already discharged")
 
-        # Update discharge date
-        update_data = schemas.AdmissionUpdate(discharge_date=datetime.now())
+        # Update discharge date and status (database trigger will update room occupancy)
+        update_data = schemas.AdmissionUpdate(
+            discharge_date=datetime.now(),
+            status="Discharged"
+        )
         admission = self.repository.update(admission_id, update_data)
 
-        # Update room occupancy
-        room = self.room_repository.get_by_id(admission.room_id)
-        if room and room.occupancy > 0:
-            self.room_repository.update_occupancy(room.room_id, room.occupancy - 1)
-
-        self.logger.log_operation("Patient discharged", f"Admission ID: {admission_id}")
+        # Auto-generate discharge bill with room charges and medicine charges
+        try:
+            from backend.services import BillingService, BillingRepository
+            billing_service = BillingService(BillingRepository(self.db), self.db)
+            billing_service.generate_discharge_bill(admission_id)
+            self.logger.log_operation(
+                "Patient discharged with bill generated",
+                f"Admission ID: {admission_id}",
+            )
+        except Exception as e:
+            self.logger.log_operation(
+                "Patient discharged but bill generation failed",
+                f"Admission ID: {admission_id}, Error: {str(e)}",
+            )
+            raise
 
         return schemas.Admission.model_validate(admission)
 
@@ -467,24 +491,18 @@ class AdmissionService:
         if not admission:
             raise ResourceNotFoundError("Admission", admission_id)
 
+        # If updating to Discharged status, set discharge_date if not provided
+        if update_data.status == "Discharged" and update_data.discharge_date is None:
+            update_data.discharge_date = datetime.now()
+
         # If updating room, verify new room has capacity
         if update_data.room_id is not None and update_data.room_id != admission.room_id:
             new_room = self.room_repository.get_by_id(update_data.room_id)
             if not new_room:
                 raise ResourceNotFoundError("Room", update_data.room_id)
 
-            if new_room.occupancy >= new_room.capacity:
+            if new_room.current_occupancy >= new_room.capacity:
                 raise InvalidOperationError("New room is at full capacity")
-
-            # Update occupancy in old and new rooms
-            old_room = self.room_repository.get_by_id(admission.room_id)
-            if old_room and old_room.occupancy > 0:
-                self.room_repository.update_occupancy(
-                    old_room.room_id, old_room.occupancy - 1
-                )
-            self.room_repository.update_occupancy(
-                new_room.room_id, new_room.occupancy + 1
-            )
 
         admission = self.repository.update(admission_id, update_data)
         self.logger.log_operation("Admission updated", f"ID: {admission_id}")

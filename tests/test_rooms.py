@@ -165,6 +165,52 @@ class TestAdmitPatient:
         })
         assert r.status_code == 404
 
+    def test_patient_cannot_have_multiple_active_admissions(self, client):
+        """Test that a patient cannot be admitted to two different rooms simultaneously."""
+        p = make_patient(client, phone="9800007001")
+        d = make_doctor(client)
+        room1 = make_room(client, room_number="MUL1", capacity=2)
+        room2 = make_room(client, room_number="MUL2", capacity=2)
+        
+        # First admission should succeed
+        adm1 = make_admission(client, p["patient_id"], room1["room_id"], d["doctor_id"])
+        assert adm1["admission_id"] is not None
+        
+        # Second admission to different room should fail
+        r = client.post("/admissions", json={
+            "patient_id": p["patient_id"],
+            "room_id": room2["room_id"],
+            "doctor_id": d["doctor_id"],
+            "admission_date": "2025-12-02T08:00:00",
+            "reason": "Second admission",
+        })
+        assert r.status_code == 400
+        assert "already has an active admission" in r.json()["detail"]
+
+    def test_patient_can_be_readmitted_after_discharge(self, client):
+        """Test that a patient can be re-admitted after being discharged."""
+        p = make_patient(client, phone="9800007002")
+        d = make_doctor(client)
+        room1 = make_room(client, room_number="MUL3", capacity=2)
+        room2 = make_room(client, room_number="MUL4", capacity=2)
+        
+        # First admission
+        adm1 = make_admission(client, p["patient_id"], room1["room_id"], d["doctor_id"])
+        
+        # Discharge patient using the discharge endpoint
+        client.patch(f"/admissions/{adm1['admission_id']}/discharge", json={})
+        
+        # Re-admission to different room should succeed
+        r = client.post("/admissions", json={
+            "patient_id": p["patient_id"],
+            "room_id": room2["room_id"],
+            "doctor_id": d["doctor_id"],
+            "admission_date": "2025-12-05T08:00:00",
+            "reason": "Re-admission",
+        })
+        assert r.status_code == 201
+        assert r.json()["status"] == "Active"
+
 
 class TestDischargePatient:
     def test_discharge_frees_room(self, client):

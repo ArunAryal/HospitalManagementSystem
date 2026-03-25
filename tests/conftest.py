@@ -1,6 +1,6 @@
 import pytest
 from fastapi.testclient import TestClient
-from sqlalchemy import create_engine
+from sqlalchemy import create_engine, text
 from sqlalchemy.orm import sessionmaker
 
 from backend.database import Base, get_db
@@ -25,6 +25,49 @@ def override_get_db():
 def create_tables():
     """Create all tables once for the test session."""
     Base.metadata.create_all(bind=engine)
+
+    # Create SQLite triggers for room occupancy management
+    db = TestingSessionLocal()
+    try:
+        # Trigger to update room occupancy on admission insert
+        db.execute(
+            text("""
+            CREATE TRIGGER IF NOT EXISTS after_admission_insert
+            AFTER INSERT ON admissions
+            FOR EACH ROW
+            WHEN NEW.status = 'Active'
+            BEGIN
+                UPDATE rooms 
+                SET current_occupancy = current_occupancy + 1,
+                    is_available = CASE 
+                        WHEN (current_occupancy + 1) >= capacity THEN 0 
+                        ELSE 1 
+                    END
+                WHERE room_id = NEW.room_id;
+            END;
+        """)
+        )
+
+        # Trigger to update room occupancy on admission discharge
+        db.execute(
+            text("""
+            CREATE TRIGGER IF NOT EXISTS after_admission_update
+            AFTER UPDATE ON admissions
+            FOR EACH ROW
+            WHEN OLD.status = 'Active' AND NEW.status = 'Discharged'
+            BEGIN
+                UPDATE rooms 
+                SET current_occupancy = MAX(0, current_occupancy - 1),
+                    is_available = 1
+                WHERE room_id = NEW.room_id;
+            END;
+        """)
+        )
+
+        db.commit()
+    finally:
+        db.close()
+
     yield
     Base.metadata.drop_all(bind=engine)
 

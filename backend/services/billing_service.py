@@ -302,3 +302,222 @@ class BillingService:
             "pending_bills": pending_bills,
             "total_revenue": float(total_revenue),
         }
+
+    def generate_discharge_bill(self, admission_id: int) -> Optional[schemas.Bill]:
+        """
+        Generate or update a bill when a patient is discharged.
+        
+        Calculates:
+        - Room charges: room.charge_per_day × number of nights
+        - All medicine charges from prescriptions
+        - Consultation fee (if not already billed through appointment)
+        
+        Returns:
+        - Updated bill if successful, None if no charges to add
+        """
+        # Get admission details
+        admission = (
+            self.db.query(models.Admission)
+            .filter(models.Admission.admission_id == admission_id)
+            .first()
+        )
+        if not admission:
+            raise ResourceNotFoundError("Admission", admission_id)
+
+        if admission.discharge_date is None:
+            raise InvalidOperationError("Admission is not discharged yet")
+
+        # Calculate length of stay
+        length_of_stay = (admission.discharge_date - admission.admission_date).days
+        if length_of_stay == 0:
+            length_of_stay = 1  # Minimum 1 day charge
+
+        # Get room charges
+        room = (
+            self.db.query(models.Room)
+            .filter(models.Room.room_id == admission.room_id)
+            .first()
+        )
+        if not room:
+            raise ResourceNotFoundError("Room", admission.room_id)
+
+        room_charges = Decimal(str(room.charge_per_day)) * Decimal(str(length_of_stay))
+
+        # Get medicine charges from prescriptions associated with this admission
+        prescriptions = (
+            self.db.query(models.Prescription)
+            .join(models.MedicalRecord)
+            .filter(models.MedicalRecord.patient_id == admission.patient_id)
+            .all()
+        )
+
+        medicine_charges = Decimal(0)
+        for prescription in prescriptions:
+            medicine = (
+                self.db.query(models.Medicine)
+                .filter(models.Medicine.medicine_id == prescription.medicine_id)
+                .first()
+            )
+            if medicine:
+                medicine_charges += Decimal(str(medicine.unit_price)) * Decimal(
+                    str(prescription.quantity)
+                )
+
+        # Check if bill exists for this admission
+        existing_bill = (
+            self.db.query(models.Bill)
+            .filter(models.Bill.admission_id == admission_id)
+            .first()
+        )
+
+        if existing_bill:
+            # Update existing bill
+            existing_bill.room_charges = room_charges
+            existing_bill.medicine_charges = medicine_charges
+            existing_bill.total_amount = (
+                existing_bill.consultation_fee
+                + medicine_charges
+                + room_charges
+                + existing_bill.other_charges
+            )
+            self.db.commit()
+            self.db.refresh(existing_bill)
+
+            self.logger.log_operation(
+                "Discharge bill updated",
+                f"Admission ID: {admission_id}, Total: ${existing_bill.total_amount}",
+            )
+
+            return schemas.Bill.model_validate(existing_bill)
+        else:
+            # Create new bill for admission with discharge
+            total_amount = room_charges + medicine_charges
+            if total_amount <= 0:
+                total_amount = Decimal("0.01")  # Minimum charge
+
+            new_bill = models.Bill(
+                patient_id=admission.patient_id,
+                admission_id=admission_id,
+                consultation_fee=Decimal(0),
+                medicine_charges=medicine_charges,
+                room_charges=room_charges,
+                other_charges=Decimal(0),
+                total_amount=total_amount,
+                payment_status=models.PaymentStatus.Pending,
+            )
+            self.db.add(new_bill)
+            self.db.commit()
+            self.db.refresh(new_bill)
+
+            self.logger.log_operation(
+                "Discharge bill created",
+                f"Admission ID: {admission_id}, Total: ${new_bill.total_amount}",
+            )
+
+            return schemas.Bill.model_validate(new_bill)
+
+    def add_medicine_charges_to_bill(
+        self, medical_record_id: int, medicine_id: int, quantity: int
+    ) -> Optional[schemas.Bill]:
+        """
+        Update patient's bill with medicine charges when a prescription is added.
+        
+        This method:
+        - Finds or creates a bill for the patient
+        - Adds the medicine charges to the bill
+        - Updates the total amount
+        
+        Returns:
+        - Updated/created bill
+        """
+        # Get medical record and patient
+        medical_record = (
+            self.db.query(models.MedicalRecord)
+            .filter(models.MedicalRecord.record_id == medical_record_id)
+            .first()
+        )
+        if not medical_record:
+            raise ResourceNotFoundError("MedicalRecord", medical_record_id)
+
+        patient_id = medical_record.patient_id
+
+        # Get medicine details
+        medicine = (
+            self.db.query(models.Medicine)
+            .filter(models.Medicine.medicine_id == medicine_id)
+            .first()
+        )
+        if not medicine:
+            raise ResourceNotFoundError("Medicine", medicine_id)
+
+        medicine_charge = Decimal(str(medicine.unit_price)) * Decimal(str(quantity))
+
+        # Try to find existing bill for this patient and medical record's appointment
+        existing_bill = None
+        if medical_record.appointment_id:
+            existing_bill = (
+                self.db.query(models.Bill)
+                .filter(
+                    models.Bill.patient_id == patient_id,
+                    models.Bill.appointment_id == medical_record.appointment_id,
+                )
+                .first()
+            )
+
+        # If no appointment bill, check for admission bill
+        if not existing_bill:
+            admission = (
+                self.db.query(models.Admission)
+                .filter(
+                    models.Admission.patient_id == patient_id,
+                    models.Admission.discharge_date.is_(None),
+                )
+                .first()
+            )
+            if admission:
+                existing_bill = (
+                    self.db.query(models.Bill)
+                    .filter(models.Bill.admission_id == admission.admission_id)
+                    .first()
+                )
+
+        if existing_bill:
+            # Update existing bill
+            existing_bill.medicine_charges += medicine_charge
+            existing_bill.total_amount = (
+                existing_bill.consultation_fee
+                + existing_bill.medicine_charges
+                + existing_bill.room_charges
+                + existing_bill.other_charges
+            )
+            self.db.commit()
+            self.db.refresh(existing_bill)
+
+            self.logger.log_operation(
+                "Medicine charges added to bill",
+                f"Bill ID: {existing_bill.bill_id}, Medicine: ${medicine_charge}, Total: ${existing_bill.total_amount}",
+            )
+
+            return schemas.Bill.model_validate(existing_bill)
+        else:
+            # Create new bill with medicine charges
+            new_bill = models.Bill(
+                patient_id=patient_id,
+                appointment_id=medical_record.appointment_id,
+                consultation_fee=Decimal(0),
+                medicine_charges=medicine_charge,
+                room_charges=Decimal(0),
+                other_charges=Decimal(0),
+                total_amount=medicine_charge,
+                payment_status=models.PaymentStatus.Pending,
+            )
+            self.db.add(new_bill)
+            self.db.commit()
+            self.db.refresh(new_bill)
+
+            self.logger.log_operation(
+                "Medicine bill created",
+                f"Patient ID: {patient_id}, Medicine: ${medicine_charge}",
+            )
+
+            return schemas.Bill.model_validate(new_bill)

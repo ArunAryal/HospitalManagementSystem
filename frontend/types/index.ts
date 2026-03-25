@@ -146,7 +146,7 @@ export interface PrescriptionCreate {
 
 // ─── Room & Admission ────────────────────────────────────────────────────────
 export type RoomType = 'General' | 'Private' | 'ICU' | 'Emergency' | 'Operation';
-export type RoomStatus = 'Available' | 'Occupied' | 'Maintenance';
+export type RoomStatus = 'Available' | 'Partially Occupied' | 'Fully Occupied' | 'Maintenance';
 
 export interface Room {
   room_id: number;

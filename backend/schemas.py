@@ -250,6 +250,7 @@ class AdmissionCreate(AdmissionBase):
 
 
 class AdmissionUpdate(BaseModel):
+    room_id: Optional[int] = None
     discharge_date: Optional[datetime] = None
     status: Optional[str] = Field(None, pattern="^(Active|Discharged)$")
 

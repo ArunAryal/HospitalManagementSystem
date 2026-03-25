@@ -16,7 +16,7 @@ const TITLES: Record<string, string> = {
 
 export default function Topbar() {
   const path = usePathname();
-  const base = '/' + path.split('/').filter(Boolean)[0] ?? '';
+  const base = '/' + (path.split('/').filter(Boolean)[0] ?? '');
   const title = TITLES[path] ?? TITLES[base] ?? 'HMS';
 
   return (

@@ -62,7 +62,13 @@ export default function AdmitPatientModal({ open, onClose, onSaved, initialRoomI
     setSaving(true);
     setError('');
     try {
-      await billingApi.createAdmission(form);
+      // Convert date string (YYYY-MM-DD) to full ISO datetime format (YYYY-MM-DDTHH:MM:SSZ)
+      const admissionDateTime = `${form.admission_date}T00:00:00Z`;
+      
+      await billingApi.createAdmission({
+        ...form,
+        admission_date: admissionDateTime
+      });
       setForm({
         patient_id: 0,
         room_id: 0,

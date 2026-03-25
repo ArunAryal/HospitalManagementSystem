@@ -114,19 +114,28 @@ def add_prescription(
     prescription: schemas.PrescriptionCreate,
     db: Session = Depends(get_db),
 ):
-    """Add a prescription to a medical record."""
+    """
+    Add a prescription to a medical record.
+    
+    This endpoint automatically:
+    1. Validates medicine stock
+    2. Creates the prescription
+    3. Updates/creates a bill with medicine charges
+    """
     from backend import models
-    from backend.services import MedicineService, MedicineRepository
+    from backend.services import MedicineService, MedicineRepository, BillingService, BillingRepository
+    from backend.exceptions import APIException
 
     if prescription.medical_record_id != record_id:
         raise HTTPException(
             status_code=400, detail="medical_record_id in body must match URL"
         )
-    if (
-        not db.query(models.MedicalRecord)
-        .filter(models.MedicalRecord.record_id == record_id)
-        .first()
-    ):
+    
+    medical_record = db.query(models.MedicalRecord).filter(
+        models.MedicalRecord.record_id == record_id
+    ).first()
+    
+    if not medical_record:
         raise HTTPException(status_code=404, detail="Medical record not found")
 
     medicine_service = MedicineService(MedicineRepository(db))
@@ -139,10 +148,26 @@ def add_prescription(
             detail=f"Insufficient stock. Available: {medicine.stock_quantity}",
         )
 
+    # Create prescription
     db_prescription = models.Prescription(**prescription.model_dump())
     db.add(db_prescription)
     db.commit()
     db.refresh(db_prescription)
+
+    # Auto-add medicine charges to bill
+    try:
+        billing_service = BillingService(BillingRepository(db), db)
+        billing_service.add_medicine_charges_to_bill(
+            medical_record_id=record_id,
+            medicine_id=prescription.medicine_id,
+            quantity=prescription.quantity
+        )
+    except APIException as e:
+        # Log the error but don't fail the prescription creation
+        print(f"Warning: Failed to add medicine charges to bill: {e.message}")
+    except Exception as e:
+        # Log unexpected errors but don't fail the prescription creation
+        print(f"Warning: Unexpected error adding medicine charges to bill: {str(e)}")
 
     return db_prescription
 
