@@ -157,7 +157,7 @@ export default function BillingPage() {
               {patients.map(p => <option key={p.patient_id} value={p.patient_id}>{p.first_name} {p.last_name}</option>)}
             </select>
           </Field>
-          <Field label="Total Amount ($)" required>
+          <Field label="Total Amount (Rs)" required>
             <input type="number" min="0" step="0.01" className="input" value={billForm.total_amount || ''}
               onChange={e => setBillForm(f => ({ ...f, total_amount: e.target.value ? +e.target.value : 0 }))} />
           </Field>
@@ -180,7 +180,7 @@ export default function BillingPage() {
               <p className="text-xl font-bold text-slate-900 mt-0.5">{formatCurrency(payModal.total_amount - payModal.paid_amount)}</p>
             </div>
             <div className="space-y-3">
-              <Field label="Amount ($)" required>
+              <Field label="Amount (Rs)" required>
                 <input type="number" min="0" step="0.01" className="input" value={payForm.amount || ''}
                   onChange={e => setPayForm(f => ({ ...f, amount: e.target.value ? +e.target.value : 0 }))} />
               </Field>

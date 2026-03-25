@@ -30,11 +30,25 @@ export function calcAge(dob?: string | null): string {
 
 export function formatCurrency(amount?: number | null): string {
   if (amount == null || isNaN(amount)) return '—';
-  return new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD' }).format(amount);
+  return new Intl.NumberFormat('en-US', { style: 'currency', currency: 'NPR' }).format(amount);
 }
 
 export function cn(...classes: (string | undefined | null | false)[]): string {
   return classes.filter(Boolean).join(' ');
+}
+
+export function parseValidationError(errorMsg: string): Record<string, string> {
+  const fieldErrors: Record<string, string> = {};
+  // Parse error messages like "Field: error message" or extract from API errors
+  const parts = errorMsg.split('; ');
+  parts.forEach(part => {
+    const match = part.match(/^([^:]+):\s*(.+)$/);
+    if (match) {
+      const [, field, msg] = match;
+      fieldErrors[field.toLowerCase().replace(/\s+/g, '_')] = msg.trim();
+    }
+  });
+  return fieldErrors;
 }
 
 export const STATUS_COLORS: Record<string, string> = {

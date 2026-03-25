@@ -74,19 +74,19 @@ export function Modal({ open, onClose, title, children, size = 'md' }: {
 
   if (!open) return null;
 
-  const widths = { sm: 'max-w-md', md: 'max-w-3xl', lg: 'max-w-[80vw]' };
+  const widths = { sm: 'max-w-md', md: 'max-w-2xl', lg: 'max-w-4xl' };
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
-      <div className="absolute inset-0 bg-black/30 backdrop-blur-sm" onClick={onClose} />
-      <div className={cn('relative bg-white rounded-2xl shadow-modal w-full', widths[size])}>
-        <div className="flex items-center justify-between px-6 py-3 border-b border-slate-100">
-          <h2 className="text-sm font-semibold text-slate-900">{title}</h2>
-          <button onClick={onClose} className="w-7 h-7 flex items-center justify-center rounded-lg text-slate-400 hover:bg-slate-100">
-            <X className="w-4 h-4" />
+    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 animate-fade-in">
+      <div className="absolute inset-0 bg-black/40 backdrop-blur-md" onClick={onClose} />
+      <div className={cn('relative bg-white rounded-xl shadow-2xl w-full border border-slate-100/50', widths[size])}>
+        <div className="flex items-center justify-between px-6 py-4 border-b border-slate-100/80 bg-gradient-to-r from-slate-50 to-white rounded-t-xl">
+          <h2 className="text-base font-semibold text-slate-900">{title}</h2>
+          <button onClick={onClose} className="w-8 h-8 flex items-center justify-center rounded-lg text-slate-400 hover:bg-slate-200/80 hover:text-slate-600 transition-colors">
+            <X className="w-5 h-5" />
           </button>
         </div>
-        <div className="px-6 py-4">{children}</div>
+        <div className="px-6 py-5">{children}</div>
       </div>
     </div>
   );
@@ -178,11 +178,19 @@ export function Field({ label, error, children, required }: {
 }) {
   return (
     <div>
-      <label className="label">
+      <label className="label text-xs font-semibold text-slate-700 mb-2 block">
         {label}{required && <span className="text-red-500 ml-0.5">*</span>}
       </label>
-      {children}
-      {error && <p className="mt-1 text-xs text-red-500">{error}</p>}
+      <div className={error ? 'ring-2 ring-red-200 rounded-lg' : ''}>
+        {children}
+      </div>
+      {error && (
+        <div className="mt-2 p-2 bg-red-50 border border-red-200 rounded-lg">
+          <p className="text-xs text-red-700 font-medium">
+            <span className="font-semibold">{label}:</span> {error}
+          </p>
+        </div>
+      )}
     </div>
   );
 }
