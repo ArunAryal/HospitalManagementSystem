@@ -1,116 +1,98 @@
+from typing import List, Optional
 from fastapi import APIRouter, Depends, HTTPException, Query
-from sqlalchemy.orm import Session, selectinload
-from typing import Optional
-from ..database import get_db
-from .. import models
-from .. import schemas
+from sqlalchemy.orm import Session
+
+from backend.database import get_db
+from backend import schemas
+from backend.services import MedicalRecordService, MedicalRecordRepository
+from backend.exceptions import APIException
 
 router = APIRouter(prefix="/medical-records", tags=["Medical Records"])
 
 
-@router.get("/", response_model=list[schemas.MedicalRecord])
+def get_medical_record_service(
+    db: Session = Depends(get_db),
+) -> MedicalRecordService:
+    """Dependency injection for MedicalRecordService."""
+    return MedicalRecordService(MedicalRecordRepository(db), db)
+
+
+@router.get("/", response_model=List[schemas.MedicalRecord])
 def list_medical_records(
     patient_id: Optional[int] = None,
     doctor_id: Optional[int] = None,
     skip: int = Query(0, ge=0),
     limit: int = Query(100, ge=1, le=500),
-    db: Session = Depends(get_db),
+    service: MedicalRecordService = Depends(get_medical_record_service),
 ):
-    query = db.query(models.MedicalRecord).options(
-        selectinload(models.MedicalRecord.patient),
-        selectinload(models.MedicalRecord.doctor)
-    )
-    if patient_id:
-        query = query.filter(models.MedicalRecord.patient_id == patient_id)
-    if doctor_id:
-        query = query.filter(models.MedicalRecord.doctor_id == doctor_id)
-    return (
-        query.order_by(models.MedicalRecord.record_date.desc())
-        .offset(skip)
-        .limit(limit)
-        .all()
-    )
+    """List all medical records."""
+    try:
+        if patient_id:
+            return service.get_patient_medical_records(
+                patient_id, skip=skip, limit=limit
+            )
+        if doctor_id:
+            return service.get_doctor_medical_records(doctor_id, skip=skip, limit=limit)
+        return service.list_medical_records(skip=skip, limit=limit)
+    except APIException as e:
+        raise HTTPException(status_code=e.status_code, detail=e.detail)
 
 
 @router.post("/", response_model=schemas.MedicalRecord, status_code=201)
 def create_medical_record(
-    record: schemas.MedicalRecordCreate, db: Session = Depends(get_db)
+    record: schemas.MedicalRecordCreate,
+    service: MedicalRecordService = Depends(get_medical_record_service),
 ):
-    if (
-        not db.query(models.Patient)
-        .filter(models.Patient.patient_id == record.patient_id)
-        .first()
-    ):
-        raise HTTPException(status_code=404, detail="Patient not found")
-    if (
-        not db.query(models.Doctor)
-        .filter(models.Doctor.doctor_id == record.doctor_id)
-        .first()
-    ):
-        raise HTTPException(status_code=404, detail="Doctor not found")
-    if record.appointment_id:
-        if (
-            not db.query(models.Appointment)
-            .filter(models.Appointment.appointment_id == record.appointment_id)
-            .first()
-        ):
-            raise HTTPException(status_code=404, detail="Appointment not found")
-
-    db_record = models.MedicalRecord(**record.model_dump())
-    db.add(db_record)
-    db.commit()
-    db.refresh(db_record)
-    return db_record
+    """Create a new medical record."""
+    try:
+        return service.create_medical_record(record)
+    except APIException as e:
+        raise HTTPException(status_code=e.status_code, detail=e.detail)
 
 
 @router.get("/{record_id}", response_model=schemas.MedicalRecord)
-def get_medical_record(record_id: int, db: Session = Depends(get_db)):
-    record = (
-        db.query(models.MedicalRecord)
-        .filter(models.MedicalRecord.record_id == record_id)
-        .first()
-    )
-    if not record:
-        raise HTTPException(status_code=404, detail="Medical record not found")
-    return record
+def get_medical_record(
+    record_id: int,
+    service: MedicalRecordService = Depends(get_medical_record_service),
+):
+    """Get a single medical record."""
+    try:
+        return service.get_medical_record(record_id)
+    except APIException as e:
+        raise HTTPException(status_code=e.status_code, detail=e.detail)
 
 
 @router.put("/{record_id}", response_model=schemas.MedicalRecord)
 def update_medical_record(
-    record_id: int, update: schemas.MedicalRecordUpdate, db: Session = Depends(get_db)
+    record_id: int,
+    update: schemas.MedicalRecordUpdate,
+    service: MedicalRecordService = Depends(get_medical_record_service),
 ):
-    record = (
-        db.query(models.MedicalRecord)
-        .filter(models.MedicalRecord.record_id == record_id)
-        .first()
-    )
-    if not record:
-        raise HTTPException(status_code=404, detail="Medical record not found")
-    for field, value in update.model_dump(exclude_unset=True).items():
-        setattr(record, field, value)
-    db.commit()
-    db.refresh(record)
-    return record
+    """Update a medical record."""
+    try:
+        return service.update_medical_record(record_id, update)
+    except APIException as e:
+        raise HTTPException(status_code=e.status_code, detail=e.detail)
 
 
 @router.delete("/{record_id}", status_code=204)
-def delete_medical_record(record_id: int, db: Session = Depends(get_db)):
-    record = (
-        db.query(models.MedicalRecord)
-        .filter(models.MedicalRecord.record_id == record_id)
-        .first()
-    )
-    if not record:
-        raise HTTPException(status_code=404, detail="Medical record not found")
-    db.delete(record)
-    db.commit()
+def delete_medical_record(
+    record_id: int,
+    service: MedicalRecordService = Depends(get_medical_record_service),
+):
+    """Delete a medical record."""
+    try:
+        service.delete_medical_record(record_id)
+        return None
+    except APIException as e:
+        raise HTTPException(status_code=e.status_code, detail=e.detail)
 
 
-# ── Prescriptions (nested under a record) ──────────────────────────────────────
-
-
-@router.get("/{record_id}/prescriptions", response_model=list[schemas.Prescription])
+@router.get("/{record_id}/prescriptions", response_model=List[schemas.Prescription])
 def list_prescriptions(record_id: int, db: Session = Depends(get_db)):
+    """Get prescriptions for a medical record."""
+    from backend import models
+
     if (
         not db.query(models.MedicalRecord)
         .filter(models.MedicalRecord.record_id == record_id)
@@ -132,6 +114,10 @@ def add_prescription(
     prescription: schemas.PrescriptionCreate,
     db: Session = Depends(get_db),
 ):
+    """Add a prescription to a medical record."""
+    from backend import models
+    from backend.services import MedicineService, MedicineRepository
+
     if prescription.medical_record_id != record_id:
         raise HTTPException(
             status_code=400, detail="medical_record_id in body must match URL"
@@ -143,48 +129,29 @@ def add_prescription(
     ):
         raise HTTPException(status_code=404, detail="Medical record not found")
 
-    medicine = (
-        db.query(models.Medicine)
-        .filter(models.Medicine.medicine_id == prescription.medicine_id)
-        .first()
-    )
-    if not medicine:
-        raise HTTPException(status_code=404, detail="Medicine not found")
+    medicine_service = MedicineService(MedicineRepository(db))
+    medicine = medicine_service.get_medicine(prescription.medicine_id)
+
+    # Check stock
     if medicine.stock_quantity < prescription.quantity:
         raise HTTPException(
             status_code=400,
             detail=f"Insufficient stock. Available: {medicine.stock_quantity}",
         )
 
-    # Note: Stock deduction is handled by database trigger after_prescription_insert
     db_prescription = models.Prescription(**prescription.model_dump())
     db.add(db_prescription)
     db.commit()
     db.refresh(db_prescription)
-    
-    # Update bill if this medical record is linked to an appointment
-    medical_record = db.query(models.MedicalRecord).filter(
-        models.MedicalRecord.record_id == record_id
-    ).first()
-    
-    if medical_record and medical_record.appointment_id:
-        # Find bill for this appointment
-        bill = db.query(models.Bill).filter(
-            models.Bill.appointment_id == medical_record.appointment_id
-        ).first()
-        
-        if bill:
-            # Add medicine charges to bill
-            medicine_cost = medicine.unit_price * prescription.quantity
-            bill.medicine_charges = bill.medicine_charges + medicine_cost
-            bill.total_amount = bill.total_amount + medicine_cost
-            db.commit()
-    
+
     return db_prescription
 
 
 @router.delete("/prescriptions/{prescription_id}", status_code=204)
 def delete_prescription(prescription_id: int, db: Session = Depends(get_db)):
+    """Delete a prescription."""
+    from backend import models
+
     presc = (
         db.query(models.Prescription)
         .filter(models.Prescription.prescription_id == prescription_id)
@@ -193,30 +160,5 @@ def delete_prescription(prescription_id: int, db: Session = Depends(get_db)):
     if not presc:
         raise HTTPException(status_code=404, detail="Prescription not found")
 
-    # Get medicine price for bill restoration
-    medicine = db.query(models.Medicine).filter(
-        models.Medicine.medicine_id == presc.medicine_id
-    ).first()
-    medicine_cost = (medicine.unit_price * presc.quantity) if medicine else 0
-    
-    # Get medical record to find associated appointment
-    medical_record = db.query(models.MedicalRecord).filter(
-        models.MedicalRecord.record_id == presc.medical_record_id
-    ).first()
-    
-    # Update bill if linked to appointment
-    if medical_record and medical_record.appointment_id:
-        bill = db.query(models.Bill).filter(
-            models.Bill.appointment_id == medical_record.appointment_id
-        ).first()
-        
-        if bill:
-            # Subtract medicine charges from bill
-            bill.medicine_charges = max(0, bill.medicine_charges - medicine_cost)
-            bill.total_amount = max(0, bill.total_amount - medicine_cost)
-            db.commit()
-
-    # Note: Stock restoration should be handled by database trigger
-    # (if a delete trigger is added to the database schema)
     db.delete(presc)
     db.commit()

@@ -1,8 +1,13 @@
 #!/usr/bin/env python3
-import sys
-sys.path.insert(0, '/home/kernel00/Codes/Hospital Management System')
+"""
+Recalculate all bill payment statuses by triggering the before_bill_update trigger.
+This should be run after fixing the trigger to update existing bills.
 
-from backend.database import engine
+Usage: uv run python -m backend.scripts.recalculate_bills
+       or from project root: uv run python backend/scripts/recalculate_bills.py
+"""
+
+from ..database import engine
 import sqlalchemy as sa
 
 # Update all bills to trigger the before_bill_update trigger

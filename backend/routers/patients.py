@@ -1,78 +1,92 @@
+from typing import List
 from fastapi import APIRouter, Depends, HTTPException, Query
 from sqlalchemy.orm import Session
-from sqlalchemy import or_
-from typing import Optional
-from ..database import get_db
-from .. import models
-from .. import schemas
+
+from backend.database import get_db
+from backend import schemas
+from backend.services import PatientService, PatientRepository
+from backend.exceptions import APIException
 
 router = APIRouter(prefix="/patients", tags=["Patients"])
 
 
-@router.get("/", response_model=list[schemas.Patient])
+def get_patient_service(db: Session = Depends(get_db)) -> PatientService:
+    """Dependency injection for PatientService."""
+    return PatientService(PatientRepository(db))
+
+
+@router.get("/", response_model=List[schemas.Patient])
 def list_patients(
-    search: Optional[str] = Query(None, description="Search by name or phone"),
+    search: str = Query(None, description="Search by name or phone"),
     skip: int = Query(0, ge=0),
     limit: int = Query(100, ge=1, le=500),
-    db: Session = Depends(get_db),
+    service: PatientService = Depends(get_patient_service),
 ):
-    query = db.query(models.Patient)
-    if search:
-        like = f"%{search}%"
-        query = query.filter(
-            or_(
-                models.Patient.first_name.ilike(like),
-                models.Patient.last_name.ilike(like),
-                models.Patient.phone.ilike(like),
-            )
-        )
-    return query.offset(skip).limit(limit).all()
+    """List all patients with optional search."""
+    try:
+        if search:
+            return service.search_patients(search, skip=skip, limit=limit)
+        return service.list_patients(skip=skip, limit=limit)
+    except APIException as e:
+        raise HTTPException(status_code=e.status_code, detail=e.detail)
 
 
 @router.post("/", response_model=schemas.Patient, status_code=201)
-def create_patient(patient: schemas.PatientCreate, db: Session = Depends(get_db)):
-    existing = db.query(models.Patient).filter(models.Patient.phone == patient.phone).first()
-    if existing:
-        raise HTTPException(status_code=400, detail="Patient with this phone number already exists")
-    db_patient = models.Patient(**patient.model_dump())
-    db.add(db_patient)
-    db.commit()
-    db.refresh(db_patient)
-    return db_patient
+def create_patient(
+    patient: schemas.PatientCreate,
+    service: PatientService = Depends(get_patient_service),
+):
+    """Create a new patient."""
+    try:
+        return service.create_patient(patient)
+    except APIException as e:
+        raise HTTPException(status_code=e.status_code, detail=e.detail)
 
 
 @router.get("/{patient_id}", response_model=schemas.Patient)
-def get_patient(patient_id: int, db: Session = Depends(get_db)):
-    patient = db.query(models.Patient).filter(models.Patient.patient_id == patient_id).first()
-    if not patient:
-        raise HTTPException(status_code=404, detail="Patient not found")
-    return patient
+def get_patient(
+    patient_id: int,
+    service: PatientService = Depends(get_patient_service),
+):
+    """Get a single patient."""
+    try:
+        return service.get_patient(patient_id)
+    except APIException as e:
+        raise HTTPException(status_code=e.status_code, detail=e.detail)
 
 
 @router.put("/{patient_id}", response_model=schemas.Patient)
 def update_patient(
-    patient_id: int, update: schemas.PatientUpdate, db: Session = Depends(get_db)
+    patient_id: int,
+    update: schemas.PatientUpdate,
+    service: PatientService = Depends(get_patient_service),
 ):
-    patient = db.query(models.Patient).filter(models.Patient.patient_id == patient_id).first()
-    if not patient:
-        raise HTTPException(status_code=404, detail="Patient not found")
-    for field, value in update.model_dump(exclude_unset=True).items():
-        setattr(patient, field, value)
-    db.commit()
-    db.refresh(patient)
-    return patient
+    """Update a patient."""
+    try:
+        return service.update_patient(patient_id, update)
+    except APIException as e:
+        raise HTTPException(status_code=e.status_code, detail=e.detail)
 
 
 @router.delete("/{patient_id}", status_code=204)
-def delete_patient(patient_id: int, db: Session = Depends(get_db)):
-    patient = db.query(models.Patient).filter(models.Patient.patient_id == patient_id).first()
-    if not patient:
-        raise HTTPException(status_code=404, detail="Patient not found")
-    
+def delete_patient(
+    patient_id: int,
+    service: PatientService = Depends(get_patient_service),
+):
+    """Delete a patient."""
     try:
-        # Delete all related records (cascade handled by database)
-        db.delete(patient)
-        db.commit()
-    except Exception as e:
-        db.rollback()
-        raise HTTPException(status_code=400, detail=f"Could not delete patient: {str(e)}")
+        service.delete_patient(patient_id)
+        return None
+    except APIException as e:
+        raise HTTPException(status_code=e.status_code, detail=e.detail)
+
+
+@router.get("/stats", response_model=dict)
+def get_patient_stats(
+    service: PatientService = Depends(get_patient_service),
+):
+    """Get patient statistics."""
+    try:
+        return service.get_patient_stats()
+    except APIException as e:
+        raise HTTPException(status_code=e.status_code, detail=e.detail)

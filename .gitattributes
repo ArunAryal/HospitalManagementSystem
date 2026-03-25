@@ -1,0 +1,54 @@
+# Git attributes for consistent line endings and file handling
+
+# Auto detect text files and normalize line endings to LF
+* text=auto
+
+# Python
+*.py text eol=lf
+*.pyx text eol=lf
+*.pyi text eol=lf
+*.md text eol=lf
+
+# TypeScript/JavaScript
+*.ts text eol=lf
+*.tsx text eol=lf
+*.js text eol=lf
+*.jsx text eol=lf
+*.json text eol=lf
+*.jsonc text eol=lf
+*.yml text eol=lf
+*.yaml text eol=lf
+
+# Shell
+*.sh text eol=lf
+*.bash text eol=lf
+
+# Windows
+*.bat text eol=crlf
+*.cmd text eol=crlf
+*.ps1 text eol=crlf
+
+# Binary files
+*.db binary
+*.sqlite binary
+*.png binary
+*.jpg binary
+*.jpeg binary
+*.gif binary
+*.ico binary
+*.mov binary
+*.mp4 binary
+*.mp3 binary
+*.gz binary
+*.zip binary
+*.7z binary
+
+# Ignore attribute for files that should not be in git
+.env export-ignore
+.env.local export-ignore
+test.db export-ignore
+.pytest_cache export-ignore
+.venv export-ignore
+node_modules export-ignore
+.next export-ignore
+__pycache__ export-ignore

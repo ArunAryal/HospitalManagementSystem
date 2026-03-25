@@ -1,8 +1,13 @@
 #!/usr/bin/env python3
-import sys
-sys.path.insert(0, '/home/kernel00/Codes/Hospital Management System')
+"""
+Fix the bill payment status trigger in the database.
+This script converts the AFTER UPDATE trigger to BEFORE UPDATE for proper status calculation.
 
-from backend.database import engine
+Usage: uv run python -m backend.scripts.fix_trigger
+       or from project root: uv run python backend/scripts/fix_trigger.py
+"""
+
+from ..database import engine
 import sqlalchemy as sa
 
 # Drop old trigger

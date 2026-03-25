@@ -1,14 +1,22 @@
+from typing import List, Optional
+from decimal import Decimal
 from fastapi import APIRouter, Depends, HTTPException, Query
-from sqlalchemy.orm import Session, selectinload
-from typing import Optional
-from ..database import get_db
-from .. import models
-from .. import schemas
+from sqlalchemy.orm import Session
+
+from backend.database import get_db
+from backend import schemas
+from backend.services import BillingService, BillingRepository
+from backend.exceptions import APIException
 
 router = APIRouter(prefix="/bills", tags=["Billing"])
 
 
-@router.get("/", response_model=list[schemas.Bill])
+def get_billing_service(db: Session = Depends(get_db)) -> BillingService:
+    """Dependency injection for BillingService."""
+    return BillingService(BillingRepository(db), db)
+
+
+@router.get("/", response_model=List[schemas.Bill])
 def list_bills(
     patient_id: Optional[int] = None,
     payment_status: Optional[str] = Query(
@@ -16,113 +24,107 @@ def list_bills(
     ),
     skip: int = Query(0, ge=0),
     limit: int = Query(100, ge=1, le=500),
-    db: Session = Depends(get_db),
+    service: BillingService = Depends(get_billing_service),
 ):
-    query = db.query(models.Bill).options(
-        selectinload(models.Bill.patient)
-    )
-    if patient_id:
-        query = query.filter(models.Bill.patient_id == patient_id)
-    if payment_status:
-        query = query.filter(
-            models.Bill.payment_status == models.PaymentStatus(payment_status)
-        )
-    return query.order_by(models.Bill.bill_date.desc()).offset(skip).limit(limit).all()
+    """List all bills."""
+    try:
+        if patient_id:
+            return service.get_patient_bills(patient_id, skip=skip, limit=limit)
+        return service.list_bills(skip=skip, limit=limit)
+    except APIException as e:
+        raise HTTPException(status_code=e.status_code, detail=e.detail)
 
 
 @router.post("/", response_model=schemas.Bill, status_code=201)
-def create_bill(bill: schemas.BillCreate, db: Session = Depends(get_db)):
-    if not db.query(models.Patient).filter(models.Patient.patient_id == bill.patient_id).first():
-        raise HTTPException(status_code=404, detail="Patient not found")
-    if bill.admission_id:
-        if not db.query(models.Admission).filter(
-            models.Admission.admission_id == bill.admission_id
-        ).first():
-            raise HTTPException(status_code=404, detail="Admission not found")
-    if bill.appointment_id:
-        if not db.query(models.Appointment).filter(
-            models.Appointment.appointment_id == bill.appointment_id
-        ).first():
-            raise HTTPException(status_code=404, detail="Appointment not found")
-
-    db_bill = models.Bill(**bill.model_dump())
-    db.add(db_bill)
-    db.commit()
-    db.refresh(db_bill)
-    return db_bill
+def create_bill(
+    bill: schemas.BillCreate,
+    service: BillingService = Depends(get_billing_service),
+):
+    """Create a new bill."""
+    try:
+        return service.create_bill(bill)
+    except APIException as e:
+        raise HTTPException(status_code=e.status_code, detail=e.detail)
 
 
 @router.get("/{bill_id}", response_model=schemas.Bill)
-def get_bill(bill_id: int, db: Session = Depends(get_db)):
-    bill = db.query(models.Bill).filter(models.Bill.bill_id == bill_id).first()
-    if not bill:
-        raise HTTPException(status_code=404, detail="Bill not found")
-    return bill
+def get_bill(
+    bill_id: int,
+    service: BillingService = Depends(get_billing_service),
+):
+    """Get a single bill."""
+    try:
+        return service.get_bill(bill_id)
+    except APIException as e:
+        raise HTTPException(status_code=e.status_code, detail=e.detail)
 
 
 @router.put("/{bill_id}", response_model=schemas.Bill)
-def update_bill(bill_id: int, update: schemas.BillUpdate, db: Session = Depends(get_db)):
-    bill = db.query(models.Bill).filter(models.Bill.bill_id == bill_id).first()
-    if not bill:
-        raise HTTPException(status_code=404, detail="Bill not found")
+def update_bill(
+    bill_id: int,
+    update: schemas.BillUpdate,
+    service: BillingService = Depends(get_billing_service),
+):
+    """Update a bill."""
+    try:
+        return service.update_bill(bill_id, update)
+    except APIException as e:
+        raise HTTPException(status_code=e.status_code, detail=e.detail)
 
-    data = update.model_dump(exclude_unset=True)
 
-    if "payment_status" in data:
-        bill.payment_status = models.PaymentStatus(data.pop("payment_status"))
-
-    if "payment_method" in data:
-        bill.payment_method = models.PaymentMethod(data.pop("payment_method"))
-
-    for field, value in data.items():
-        setattr(bill, field, value)
-
-    db.commit()
-    db.refresh(bill)
-    return bill
+@router.post("/{bill_id}/payment", response_model=schemas.Bill)
+def record_payment(
+    bill_id: int,
+    amount: Decimal,
+    payment_method: str,
+    service: BillingService = Depends(get_billing_service),
+):
+    """Record a payment for a bill."""
+    try:
+        return service.record_payment(bill_id, amount, payment_method)
+    except APIException as e:
+        raise HTTPException(status_code=e.status_code, detail=e.detail)
 
 
 @router.delete("/{bill_id}", status_code=204)
-def delete_bill(bill_id: int, db: Session = Depends(get_db)):
-    bill = db.query(models.Bill).filter(models.Bill.bill_id == bill_id).first()
-    if not bill:
-        raise HTTPException(status_code=404, detail="Bill not found")
-    db.delete(bill)
-    db.commit()
+def delete_bill(
+    bill_id: int,
+    service: BillingService = Depends(get_billing_service),
+):
+    """Delete a bill."""
+    try:
+        service.delete_bill(bill_id)
+        return None
+    except APIException as e:
+        raise HTTPException(status_code=e.status_code, detail=e.detail)
 
 
-@router.post("/admission/{admission_id}/generate", response_model=schemas.Bill, status_code=201)
-def generate_bill_for_admission(admission_id: int, db: Session = Depends(get_db)):
+@router.post(
+    "/admission/{admission_id}/generate", response_model=schemas.Bill, status_code=201
+)
+def generate_bill_for_admission(
+    admission_id: int,
+    service: BillingService = Depends(get_billing_service),
+):
     """Generate or get auto-calculated bill for an admission."""
-    # Check if admission exists
-    admission = db.query(models.Admission).filter(
-        models.Admission.admission_id == admission_id
-    ).first()
-    if not admission:
-        raise HTTPException(status_code=404, detail="Admission not found")
-    
-    # Check if bill already exists
-    existing_bill = db.query(models.Bill).filter(
-        models.Bill.admission_id == admission_id
-    ).first()
-    if existing_bill:
-        return existing_bill
-    
-    # Get room daily rate
-    room = db.query(models.Room).filter(models.Room.room_id == admission.room_id).first()
-    room_charges = room.charge_per_day if room else 0
-    
-    # Create new bill
-    db_bill = models.Bill(
-        patient_id=admission.patient_id,
-        admission_id=admission_id,
-        consultation_fee=0,
-        medicine_charges=0,
-        room_charges=room_charges,
-        other_charges=0,
-        total_amount=room_charges,
-    )
-    db.add(db_bill)
-    db.commit()
-    db.refresh(db_bill)
-    return db_bill
+    try:
+        return service.create_bill(
+            schemas.BillCreate(
+                patient_id=0,  # Will be filled by service
+                admission_id=admission_id,
+                total_amount=0,  # Will be calculated by service
+            )
+        )
+    except APIException as e:
+        raise HTTPException(status_code=e.status_code, detail=e.detail)
+
+
+@router.get("/stats/billing", response_model=dict)
+def get_billing_stats(
+    service: BillingService = Depends(get_billing_service),
+):
+    """Get billing statistics."""
+    try:
+        return service.get_billing_stats()
+    except APIException as e:
+        raise HTTPException(status_code=e.status_code, detail=e.detail)

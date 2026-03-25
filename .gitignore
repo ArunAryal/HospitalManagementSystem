@@ -1,6 +1,8 @@
 # Python-generated files
 __pycache__/
 *.py[oc]
+*.pyc
+*.pyo
 build/
 dist/
 wheels/
@@ -8,12 +10,41 @@ wheels/
 
 # Virtual environments
 .venv
+venv/
+env/
 
-# dot env file 
+# Environment variables
 .env
+.env.local
+.env.*.local
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+.DS_Store
+
+# Testing
+.pytest_cache/
+.coverage
+htmlcov/
+.tox/
+test.db
+*.sqlite
+*.sqlite3
+
+# Runtime
+.python-version
+*.log
 
 # Node.js and npm
 node_modules/
 .next/
 npm-debug.log
 yarn-error.log
+package-lock.json
+
+# OS
+Thumbs.db

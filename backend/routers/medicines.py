@@ -1,101 +1,121 @@
+from typing import List, Optional
 from fastapi import APIRouter, Depends, HTTPException, Query
 from sqlalchemy.orm import Session
-from typing import Optional
-from ..database import get_db
-from .. import models
-from .. import schemas
+
+from backend.database import get_db
+from backend import schemas
+from backend.services import MedicineService, MedicineRepository
+from backend.exceptions import APIException
 
 router = APIRouter(prefix="/medicines", tags=["Medicines"])
 
 
-@router.get("/", response_model=list[schemas.Medicine])
+def get_medicine_service(db: Session = Depends(get_db)) -> MedicineService:
+    """Dependency injection for MedicineService."""
+    return MedicineService(MedicineRepository(db))
+
+
+@router.get("/", response_model=List[schemas.Medicine])
 def list_medicines(
     search: Optional[str] = Query(None, description="Search by name or manufacturer"),
-    low_stock: bool = Query(False, description="Filter medicines at or below reorder level"),
+    low_stock: bool = Query(
+        False, description="Filter medicines at or below reorder level"
+    ),
     skip: int = Query(0, ge=0),
     limit: int = Query(100, ge=1, le=500),
-    db: Session = Depends(get_db),
+    service: MedicineService = Depends(get_medicine_service),
 ):
-    query = db.query(models.Medicine)
-    if search:
-        like = f"%{search}%"
-        query = query.filter(
-            models.Medicine.medicine_name.ilike(like)
-            | models.Medicine.manufacturer.ilike(like)
-        )
-    if low_stock:
-        query = query.filter(
-            models.Medicine.stock_quantity <= models.Medicine.reorder_level
-        )
-    return query.order_by(models.Medicine.medicine_name).offset(skip).limit(limit).all()
+    """List all medicines."""
+    try:
+        if search:
+            return service.search_medicines(search, skip=skip, limit=limit)
+        if low_stock:
+            return service.get_low_stock_medicines(skip=skip, limit=limit)
+        return service.list_medicines(skip=skip, limit=limit)
+    except APIException as e:
+        raise HTTPException(status_code=e.status_code, detail=e.detail)
 
 
 @router.post("/", response_model=schemas.Medicine, status_code=201)
-def create_medicine(medicine: schemas.MedicineCreate, db: Session = Depends(get_db)):
-    existing = db.query(models.Medicine).filter(
-        models.Medicine.medicine_name == medicine.medicine_name
-    ).first()
-    if existing:
-        raise HTTPException(status_code=400, detail="Medicine with this name already exists")
-    db_medicine = models.Medicine(**medicine.model_dump())
-    db.add(db_medicine)
-    db.commit()
-    db.refresh(db_medicine)
-    return db_medicine
+def create_medicine(
+    medicine: schemas.MedicineCreate,
+    service: MedicineService = Depends(get_medicine_service),
+):
+    """Create a new medicine."""
+    try:
+        return service.create_medicine(medicine)
+    except APIException as e:
+        raise HTTPException(status_code=e.status_code, detail=e.detail)
 
 
-@router.get("/low-stock", response_model=list[schemas.Medicine])
-def get_low_stock_medicines(db: Session = Depends(get_db)):
-    """Returns all medicines at or below their reorder level."""
-    return (
-        db.query(models.Medicine)
-        .filter(models.Medicine.stock_quantity <= models.Medicine.reorder_level)
-        .order_by(models.Medicine.stock_quantity)
-        .all()
-    )
+@router.get("/low-stock", response_model=List[schemas.Medicine])
+def get_low_stock_medicines(
+    service: MedicineService = Depends(get_medicine_service),
+):
+    """Get medicines with low stock."""
+    try:
+        return service.get_low_stock_medicines(skip=0, limit=999999)
+    except APIException as e:
+        raise HTTPException(status_code=e.status_code, detail=e.detail)
 
 
 @router.get("/{medicine_id}", response_model=schemas.Medicine)
-def get_medicine(medicine_id: int, db: Session = Depends(get_db)):
-    medicine = db.query(models.Medicine).filter(models.Medicine.medicine_id == medicine_id).first()
-    if not medicine:
-        raise HTTPException(status_code=404, detail="Medicine not found")
-    return medicine
+def get_medicine(
+    medicine_id: int,
+    service: MedicineService = Depends(get_medicine_service),
+):
+    """Get a single medicine."""
+    try:
+        return service.get_medicine(medicine_id)
+    except APIException as e:
+        raise HTTPException(status_code=e.status_code, detail=e.detail)
 
 
 @router.put("/{medicine_id}", response_model=schemas.Medicine)
 def update_medicine(
-    medicine_id: int, update: schemas.MedicineUpdate, db: Session = Depends(get_db)
+    medicine_id: int,
+    update: schemas.MedicineUpdate,
+    service: MedicineService = Depends(get_medicine_service),
 ):
-    medicine = db.query(models.Medicine).filter(models.Medicine.medicine_id == medicine_id).first()
-    if not medicine:
-        raise HTTPException(status_code=404, detail="Medicine not found")
-    for field, value in update.model_dump(exclude_unset=True).items():
-        setattr(medicine, field, value)
-    db.commit()
-    db.refresh(medicine)
-    return medicine
+    """Update a medicine."""
+    try:
+        return service.update_medicine(medicine_id, update)
+    except APIException as e:
+        raise HTTPException(status_code=e.status_code, detail=e.detail)
 
 
 @router.patch("/{medicine_id}/restock", response_model=schemas.Medicine)
 def restock_medicine(
     medicine_id: int,
     quantity: int = Query(..., gt=0, description="Units to add to stock"),
-    db: Session = Depends(get_db),
+    service: MedicineService = Depends(get_medicine_service),
 ):
-    medicine = db.query(models.Medicine).filter(models.Medicine.medicine_id == medicine_id).first()
-    if not medicine:
-        raise HTTPException(status_code=404, detail="Medicine not found")
-    medicine.stock_quantity += quantity
-    db.commit()
-    db.refresh(medicine)
-    return medicine
+    """Add medicine to stock."""
+    try:
+        return service.restock_medicine(medicine_id, quantity)
+    except APIException as e:
+        raise HTTPException(status_code=e.status_code, detail=e.detail)
 
 
 @router.delete("/{medicine_id}", status_code=204)
-def delete_medicine(medicine_id: int, db: Session = Depends(get_db)):
-    medicine = db.query(models.Medicine).filter(models.Medicine.medicine_id == medicine_id).first()
-    if not medicine:
-        raise HTTPException(status_code=404, detail="Medicine not found")
-    db.delete(medicine)
-    db.commit()
+def delete_medicine(
+    medicine_id: int,
+    service: MedicineService = Depends(get_medicine_service),
+):
+    """Delete a medicine."""
+    try:
+        service.delete_medicine(medicine_id)
+        return None
+    except APIException as e:
+        raise HTTPException(status_code=e.status_code, detail=e.detail)
+
+
+@router.get("/stats/inventory", response_model=dict)
+def get_inventory_stats(
+    service: MedicineService = Depends(get_medicine_service),
+):
+    """Get inventory statistics."""
+    try:
+        return service.get_inventory_stats()
+    except APIException as e:
+        raise HTTPException(status_code=e.status_code, detail=e.detail)

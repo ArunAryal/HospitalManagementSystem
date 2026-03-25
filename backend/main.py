@@ -1,11 +1,20 @@
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
-from .routers import patients, doctors, appointments, medical_records, billing, medicines, rooms
+
+from backend.routers import (
+    patients,
+    doctors,
+    appointments,
+    medical_records,
+    billing,
+    medicines,
+    rooms,
+)
 
 app = FastAPI(
     title="Hospital Management System API",
     description="A comprehensive Hospital Management System with patient, doctor, appointment, and billing management",
-    version="1.0.0"
+    version="1.0.0",
 )
 
 app.add_middleware(
@@ -30,7 +39,7 @@ def read_root():
     return {
         "message": "Welcome to Hospital Management System API",
         "docs": "/docs",
-        "redoc": "/redoc"
+        "redoc": "/redoc",
     }
 
 
