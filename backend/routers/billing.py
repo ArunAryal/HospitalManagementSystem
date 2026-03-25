@@ -77,13 +77,6 @@ def update_bill(bill_id: int, update: schemas.BillUpdate, db: Session = Depends(
     for field, value in data.items():
         setattr(bill, field, value)
 
-    # Auto-update status based on paid amount
-    if bill.paid_amount is not None:
-        if bill.paid_amount >= bill.total_amount:
-            bill.payment_status = models.PaymentStatus.Paid
-        elif bill.paid_amount > 0:
-            bill.payment_status = models.PaymentStatus.PartiallyPaid
-
     db.commit()
     db.refresh(bill)
     return bill

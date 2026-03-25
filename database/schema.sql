@@ -222,6 +222,28 @@ BEGIN
     WHERE medicine_id = OLD.medicine_id;
 END//
 
+-- Trigger to auto-update payment status based on paid amount
+CREATE TRIGGER after_bill_update
+AFTER UPDATE ON bills
+FOR EACH ROW
+BEGIN
+    IF NEW.paid_amount IS NOT NULL THEN
+        IF NEW.paid_amount >= NEW.total_amount THEN
+            UPDATE bills 
+            SET payment_status = 'Paid'
+            WHERE bill_id = NEW.bill_id;
+        ELSEIF NEW.paid_amount > 0 THEN
+            UPDATE bills 
+            SET payment_status = 'Partially Paid'
+            WHERE bill_id = NEW.bill_id;
+        ELSEIF NEW.paid_amount = 0 THEN
+            UPDATE bills 
+            SET payment_status = 'Pending'
+            WHERE bill_id = NEW.bill_id;
+        END IF;
+    END IF;
+END//
+
 DELIMITER ;
 
 -- Stored Procedure: Calculate Bill Amount

@@ -126,11 +126,6 @@ def admit_patient(admission: schemas.AdmissionCreate, db: Session = Depends(get_
     if room.current_occupancy >= room.capacity:
         raise HTTPException(status_code=400, detail="Room is at full capacity")
 
-    # Update room occupancy
-    room.current_occupancy += 1
-    if room.current_occupancy >= room.capacity:
-        room.is_available = False
-
     db_admission = models.Admission(**admission.model_dump())
     db.add(db_admission)
     db.commit()
@@ -164,19 +159,10 @@ def update_admission(
 
     data = update.model_dump(exclude_unset=True)
 
-    # Handle discharge: free up the room
+    # Handle discharge: discharge_date auto-set if not provided
     if data.get("status") == "Discharged" and admission.status == "Active":
         if not data.get("discharge_date"):
             data["discharge_date"] = datetime.utcnow()
-
-        room = (
-            db.query(models.Room)
-            .filter(models.Room.room_id == admission.room_id)
-            .first()
-        )
-        if room:
-            room.current_occupancy = max(0, room.current_occupancy - 1)
-            room.is_available = True
 
     for field, value in data.items():
         setattr(admission, field, value)

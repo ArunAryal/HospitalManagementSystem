@@ -218,6 +218,9 @@ class RoomCreate(RoomBase):
 
 
 class RoomUpdate(BaseModel):
+    room_number: Optional[str] = Field(None, max_length=10)
+    room_type: Optional[str] = Field(None, pattern="^(General|Private|ICU|Emergency)$")
+    capacity: Optional[int] = Field(None, gt=0)
     charge_per_day: Optional[Decimal] = Field(None, gt=0)
     is_available: Optional[bool] = None
     current_occupancy: Optional[int] = Field(None, ge=0)
