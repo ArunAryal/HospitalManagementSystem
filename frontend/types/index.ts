@@ -165,7 +165,7 @@ export interface Admission {
   doctor_id: number;
   admission_date: string;
   discharge_date?: string;
-  diagnosis: string;
+  reason: string;
   status: 'Active' | 'Discharged';
   patient?: Patient;
   room?: Room;
@@ -178,7 +178,7 @@ export interface AdmissionCreate {
   room_id: number;
   doctor_id: number;
   admission_date: string;
-  diagnosis: string;
+  reason: string;
 }
 
 // ─── Billing ─────────────────────────────────────────────────────────────────

@@ -2,13 +2,15 @@ from fastapi import APIRouter, Depends, HTTPException, Query
 from sqlalchemy.orm import Session
 from typing import Optional
 from datetime import datetime
-from backend.database import get_db
-from backend import models, schemas
+from ..database import get_db
+from .. import models
+from .. import schemas
 
-router = APIRouter(tags=["Rooms & Admissions"])
+router = APIRouter(prefix="", tags=["Rooms & Admissions"])
 
 
 # ── Rooms ──────────────────────────────────────────────────────────────────────
+
 
 @router.get("/rooms", response_model=list[schemas.Room])
 def list_rooms(
@@ -26,7 +28,11 @@ def list_rooms(
 
 @router.post("/rooms", response_model=schemas.Room, status_code=201)
 def create_room(room: schemas.RoomCreate, db: Session = Depends(get_db)):
-    existing = db.query(models.Room).filter(models.Room.room_number == room.room_number).first()
+    existing = (
+        db.query(models.Room)
+        .filter(models.Room.room_number == room.room_number)
+        .first()
+    )
     if existing:
         raise HTTPException(status_code=400, detail="Room number already exists")
     db_room = models.Room(**room.model_dump())
@@ -45,7 +51,9 @@ def get_room(room_id: int, db: Session = Depends(get_db)):
 
 
 @router.put("/rooms/{room_id}", response_model=schemas.Room)
-def update_room(room_id: int, update: schemas.RoomUpdate, db: Session = Depends(get_db)):
+def update_room(
+    room_id: int, update: schemas.RoomUpdate, db: Session = Depends(get_db)
+):
     room = db.query(models.Room).filter(models.Room.room_id == room_id).first()
     if not room:
         raise HTTPException(status_code=404, detail="Room not found")
@@ -62,12 +70,15 @@ def delete_room(room_id: int, db: Session = Depends(get_db)):
     if not room:
         raise HTTPException(status_code=404, detail="Room not found")
     if room.current_occupancy > 0:
-        raise HTTPException(status_code=400, detail="Cannot delete a room with active admissions")
+        raise HTTPException(
+            status_code=400, detail="Cannot delete a room with active admissions"
+        )
     db.delete(room)
     db.commit()
 
 
 # ── Admissions ─────────────────────────────────────────────────────────────────
+
 
 @router.get("/admissions", response_model=list[schemas.Admission])
 def list_admissions(
@@ -82,17 +93,32 @@ def list_admissions(
         query = query.filter(models.Admission.patient_id == patient_id)
     if status:
         query = query.filter(models.Admission.status == status)
-    return query.order_by(models.Admission.admission_date.desc()).offset(skip).limit(limit).all()
+    return (
+        query.order_by(models.Admission.admission_date.desc())
+        .offset(skip)
+        .limit(limit)
+        .all()
+    )
 
 
 @router.post("/admissions", response_model=schemas.Admission, status_code=201)
 def admit_patient(admission: schemas.AdmissionCreate, db: Session = Depends(get_db)):
-    if not db.query(models.Patient).filter(models.Patient.patient_id == admission.patient_id).first():
+    if (
+        not db.query(models.Patient)
+        .filter(models.Patient.patient_id == admission.patient_id)
+        .first()
+    ):
         raise HTTPException(status_code=404, detail="Patient not found")
-    if not db.query(models.Doctor).filter(models.Doctor.doctor_id == admission.doctor_id).first():
+    if (
+        not db.query(models.Doctor)
+        .filter(models.Doctor.doctor_id == admission.doctor_id)
+        .first()
+    ):
         raise HTTPException(status_code=404, detail="Doctor not found")
 
-    room = db.query(models.Room).filter(models.Room.room_id == admission.room_id).first()
+    room = (
+        db.query(models.Room).filter(models.Room.room_id == admission.room_id).first()
+    )
     if not room:
         raise HTTPException(status_code=404, detail="Room not found")
     if not room.is_available:
@@ -114,9 +140,11 @@ def admit_patient(admission: schemas.AdmissionCreate, db: Session = Depends(get_
 
 @router.get("/admissions/{admission_id}", response_model=schemas.Admission)
 def get_admission(admission_id: int, db: Session = Depends(get_db)):
-    admission = db.query(models.Admission).filter(
-        models.Admission.admission_id == admission_id
-    ).first()
+    admission = (
+        db.query(models.Admission)
+        .filter(models.Admission.admission_id == admission_id)
+        .first()
+    )
     if not admission:
         raise HTTPException(status_code=404, detail="Admission not found")
     return admission
@@ -126,9 +154,11 @@ def get_admission(admission_id: int, db: Session = Depends(get_db)):
 def update_admission(
     admission_id: int, update: schemas.AdmissionUpdate, db: Session = Depends(get_db)
 ):
-    admission = db.query(models.Admission).filter(
-        models.Admission.admission_id == admission_id
-    ).first()
+    admission = (
+        db.query(models.Admission)
+        .filter(models.Admission.admission_id == admission_id)
+        .first()
+    )
     if not admission:
         raise HTTPException(status_code=404, detail="Admission not found")
 
@@ -139,7 +169,11 @@ def update_admission(
         if not data.get("discharge_date"):
             data["discharge_date"] = datetime.utcnow()
 
-        room = db.query(models.Room).filter(models.Room.room_id == admission.room_id).first()
+        room = (
+            db.query(models.Room)
+            .filter(models.Room.room_id == admission.room_id)
+            .first()
+        )
         if room:
             room.current_occupancy = max(0, room.current_occupancy - 1)
             room.is_available = True

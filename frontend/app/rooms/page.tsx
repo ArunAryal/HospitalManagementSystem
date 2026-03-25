@@ -24,7 +24,7 @@ export default function RoomsPage() {
   const [editRoom, setEditRoom] = useState<Room | null>(null);
   const [admitModal, setAdmitModal] = useState(false);
   const [roomForm, setRoomForm] = useState<any>({ room_number: '', room_type: 'General', capacity: 1, charge_per_day: 0, is_available: true });
-  const [admitForm, setAdmitForm] = useState<AdmissionCreate>({ patient_id: 0, room_id: 0, doctor_id: 0, admission_date: new Date().toISOString().split('T')[0], diagnosis: '' });
+  const [admitForm, setAdmitForm] = useState<AdmissionCreate>({ patient_id: 0, room_id: 0, doctor_id: 0, admission_date: new Date().toISOString().split('T')[0], reason: '' });
   const [saving, setSaving] = useState(false);
   const [search, setSearch] = useState('');
 
@@ -54,7 +54,8 @@ export default function RoomsPage() {
 
   useEffect(() => {
     if (!admitModal) {
-      setAdmitForm({ patient_id: 0, room_id: 0, doctor_id: 0, admission_date: new Date().toISOString().split('T')[0], diagnosis: '' });
+      setAdmitForm({ patient_id: 0, room_id: 0, doctor_id: 0, admission_date: new Date().toISOString().split('T')[0], reason: '' });
+      setError('');
     }
   }, [admitModal]);
 
@@ -73,7 +74,10 @@ export default function RoomsPage() {
   };
 
   const admitPatient = async () => {
-    if (!admitForm.patient_id || !admitForm.room_id || !admitForm.doctor_id || !admitForm.diagnosis) return;
+    if (!admitForm.patient_id || !admitForm.room_id || !admitForm.doctor_id || !admitForm.reason) {
+      setError('Please fill all required fields');
+      return;
+    }
     setSaving(true);
     try {
       await billingApi.createAdmission(admitForm);
@@ -177,7 +181,7 @@ export default function RoomsPage() {
         <div className="card overflow-hidden">
           <table className="w-full text-sm">
             <thead className="bg-slate-50 border-b border-slate-100">
-              <tr>{['Patient', 'Room', 'Doctor', 'Diagnosis', 'Admitted', 'Status', ''].map(h =>
+              <tr>{['Patient', 'Room', 'Doctor', 'Reason', 'Admitted', 'Status', ''].map(h =>
                 <th key={h} className="table-header px-4 py-3 text-left">{h}</th>)}
               </tr>
             </thead>
@@ -187,7 +191,7 @@ export default function RoomsPage() {
                   <td className="px-4 py-3 font-medium">{a.patient ? `${a.patient.first_name} ${a.patient.last_name}` : `#${a.patient_id}`}</td>
                   <td className="px-4 py-3 text-slate-500">{a.room?.room_number ?? `#${a.room_id}`}</td>
                   <td className="px-4 py-3 text-slate-500">{a.doctor ? `Dr. ${a.doctor.last_name}` : `#${a.doctor_id}`}</td>
-                  <td className="px-4 py-3 text-slate-500 max-w-[160px] truncate">{a.diagnosis}</td>
+                  <td className="px-4 py-3 text-slate-500 max-w-[160px] truncate">{a.reason}</td>
                   <td className="px-4 py-3 text-xs text-slate-400">{formatDate(a.admission_date)}</td>
                   <td className="px-4 py-3"><StatusBadge status={a.status} /></td>
                   <td className="px-4 py-3">
@@ -237,6 +241,7 @@ export default function RoomsPage() {
 
       {/* Admit Modal */}
       <Modal open={admitModal} onClose={() => setAdmitModal(false)} title="Admit Patient" size="lg">
+        {error && <div className="mb-3"><ErrorBanner message={error} /></div>}
         <div className="grid grid-cols-3 gap-3">
           <Field label="Patient" required>
             <select className="input" value={admitForm.patient_id} onChange={e => setAdmitForm(f => ({ ...f, patient_id: +e.target.value }))}>
@@ -260,8 +265,8 @@ export default function RoomsPage() {
             <input type="date" className="input" value={admitForm.admission_date} onChange={e => setAdmitForm(f => ({ ...f, admission_date: e.target.value }))} />
           </Field>
           <div className="col-span-2">
-            <Field label="Diagnosis" required>
-              <input className="input" value={admitForm.diagnosis} onChange={e => setAdmitForm(f => ({ ...f, diagnosis: e.target.value }))} />
+            <Field label="Reason" required>
+              <input className="input" value={admitForm.reason} onChange={e => setAdmitForm(f => ({ ...f, reason: e.target.value }))} />
             </Field>
           </div>
         </div>

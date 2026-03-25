@@ -18,7 +18,7 @@ export default function AdmitPatientModal({ open, onClose, onSaved, initialRoomI
     room_id: initialRoomId || 0,
     doctor_id: 0,
     admission_date: new Date().toISOString().split('T')[0],
-    diagnosis: ''
+    reason: ''
   });
   
   const [patients, setPatients] = useState<Patient[]>([]);
@@ -54,7 +54,7 @@ export default function AdmitPatientModal({ open, onClose, onSaved, initialRoomI
   };
 
   const handleSave = async () => {
-    if (!form.patient_id || !form.room_id || !form.doctor_id || !form.diagnosis) {
+    if (!form.patient_id || !form.room_id || !form.doctor_id || !form.reason) {
       setError('Please fill all required fields');
       return;
     }
@@ -68,9 +68,10 @@ export default function AdmitPatientModal({ open, onClose, onSaved, initialRoomI
         room_id: 0,
         doctor_id: 0,
         admission_date: new Date().toISOString().split('T')[0],
-        diagnosis: ''
+        reason: ''
       });
       onSaved();
+      onClose();
     } catch (e: any) {
       setError(e?.message || e?.toString?.() || 'An error occurred');
     } finally {
@@ -115,8 +116,8 @@ export default function AdmitPatientModal({ open, onClose, onSaved, initialRoomI
             </Field>
             
             <div className="col-span-2">
-              <Field label="Diagnosis" required>
-                <input className="input" value={form.diagnosis} onChange={e => setForm(f => ({ ...f, diagnosis: e.target.value }))} placeholder="e.g. Broken Arm" />
+              <Field label="Reason" required>
+                <input className="input" value={form.reason} onChange={e => setForm(f => ({ ...f, reason: e.target.value }))} placeholder="e.g. Broken Arm" />
               </Field>
             </div>
           </div>

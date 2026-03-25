@@ -1,9 +1,10 @@
 from fastapi import APIRouter, Depends, HTTPException, Query
-from sqlalchemy.orm import Session
+from sqlalchemy.orm import Session, selectinload
 from typing import Optional
 from datetime import date
-from backend.database import get_db
-from backend import models, schemas
+from ..database import get_db
+from .. import models
+from .. import schemas
 
 router = APIRouter(prefix="/appointments", tags=["Appointments"])
 
@@ -18,7 +19,10 @@ def list_appointments(
     limit: int = Query(100, ge=1, le=500),
     db: Session = Depends(get_db),
 ):
-    query = db.query(models.Appointment)
+    query = db.query(models.Appointment).options(
+        selectinload(models.Appointment.patient),
+        selectinload(models.Appointment.doctor)
+    )
     if patient_id:
         query = query.filter(models.Appointment.patient_id == patient_id)
     if doctor_id:

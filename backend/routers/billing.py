@@ -1,8 +1,9 @@
 from fastapi import APIRouter, Depends, HTTPException, Query
-from sqlalchemy.orm import Session
+from sqlalchemy.orm import Session, selectinload
 from typing import Optional
-from backend.database import get_db
-from backend import models, schemas
+from ..database import get_db
+from .. import models
+from .. import schemas
 
 router = APIRouter(prefix="/bills", tags=["Billing"])
 
@@ -17,7 +18,9 @@ def list_bills(
     limit: int = Query(100, ge=1, le=500),
     db: Session = Depends(get_db),
 ):
-    query = db.query(models.Bill)
+    query = db.query(models.Bill).options(
+        selectinload(models.Bill.patient)
+    )
     if patient_id:
         query = query.filter(models.Bill.patient_id == patient_id)
     if payment_status:
