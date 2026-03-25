@@ -100,8 +100,6 @@ export const medicinesApi = {
     request<any>('/medicines/', { method: 'POST', body: JSON.stringify(data) }),
   update: (id: number, data: any) =>
     request<any>(`/medicines/${id}`, { method: 'PUT', body: JSON.stringify(data) }),
-  prescribe: (data: any) =>
-    request<any>('/medicines/prescriptions/', { method: 'POST', body: JSON.stringify(data) }),
   delete: (id: number) =>
     request<any>(`/medicines/${id}`, { method: 'DELETE' }),
 };
